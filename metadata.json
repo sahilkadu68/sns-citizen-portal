@@ -1,0 +1,8 @@
+{
+  "name": "SNS - Smart Nagrik Seva",
+  "description": "A centralized civic grievance redressal platform with geo-tagging, automated escalation, and real-time tracking for citizens and municipal administrators.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
