@@ -14,10 +14,10 @@ import java.util.Date;
 @Component
 public class JwtUtils {
 
-    @Value("${sns.app.jwtSecret}")
+    @Value("${sns.app.jwtSecret:NagrikSevaSecretKeyMustBeLongEnoughForHS512AlgorithmSecurity2025}")
     private String jwtSecret;
 
-    @Value("${sns.app.jwtExpirationMs}")
+    @Value("${sns.app.jwtExpirationMs:86400000}")
     private int jwtExpirationMs;
 
     public String generateJwtToken(Authentication authentication) {
