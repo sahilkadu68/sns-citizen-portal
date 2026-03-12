@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, UserRole } from '../../types';
 import { Shield, Lock, Mail, Eye, EyeOff, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
-import axios from 'axios';
+import api from '../../src/api';
 import { motion } from 'framer-motion';
 
 interface Props {
@@ -23,7 +23,7 @@ const Login: React.FC<Props> = ({ onLogin }) => {
     setError(null);
 
     try {
-      const response = await axios.post('http://localhost:8080/api/auth/login', {
+      const response = await api.post('/auth/login', {
         email,
         password
       });

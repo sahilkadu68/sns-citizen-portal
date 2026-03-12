@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../src/api';
 import { ArrowLeft, Clock, MapPin, AlertTriangle, User, CheckCircle2, Loader2, Activity } from 'lucide-react';
 import { ComplaintStatus } from '../../types';
 import { motion } from 'framer-motion';
@@ -20,10 +20,7 @@ const ComplaintDetails: React.FC = () => {
     useEffect(() => {
         const fetchDetails = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const res = await axios.get(`http://localhost:8080/api/complaints/my`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                const res = await api.get('/complaints/my');
                 // Filter locally since we don't have a specific get-by-id endpoint yet, or use /my list
                 const found = res.data.find((c: any) => c.complaintId.toString() === id);
                 setComplaint(found);

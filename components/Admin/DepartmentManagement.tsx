@@ -3,6 +3,8 @@ import { User } from '../../types';
 import { Plus, Building2, Trash2, Edit2, Mail, Phone, X, Check, Loader2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import api from '../../src/api';
+
 const DepartmentManagement: React.FC<{ user: User }> = ({ user }) => {
     const [departments, setDepartments] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -15,9 +17,8 @@ const DepartmentManagement: React.FC<{ user: User }> = ({ user }) => {
 
     const fetchDepartments = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:8080/api/departments', { headers: { Authorization: `Bearer ${token}` } });
-            if (res.ok) setDepartments(await res.json());
+            const res = await api.get('/departments');
+            if (res.status === 200) setDepartments(res.data);
         } catch (e) { console.error(e); }
     };
 
@@ -32,20 +33,16 @@ const DepartmentManagement: React.FC<{ user: User }> = ({ user }) => {
         if (!form.name.trim()) return;
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const url = editingDept ? `http://localhost:8080/api/departments/${editingDept.id}` : 'http://localhost:8080/api/departments';
-            const res = await fetch(url, {
-                method: editingDept ? 'PUT' : 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify(form)
-            });
-            if (res.ok) {
+            const url = editingDept ? `/departments/${editingDept.id}` : '/departments';
+            const res = await (editingDept ? api.put(url, form) : api.post(url, form));
+            
+            if (res.status === 200 || res.status === 201) {
                 showToast(editingDept ? 'Updated successfully!' : 'Department created!', 'success');
                 setNewDept({ name: '', description: '', contactEmail: '', contactPhone: '' });
                 setEditingDept(null);
                 fetchDepartments();
             } else {
-                showToast(`Error: ${await res.text()}`, 'error');
+                showToast(`Error: ${res.data}`, 'error');
             }
         } catch { showToast('Operation failed', 'error'); }
         finally { setLoading(false); }
@@ -54,9 +51,8 @@ const DepartmentManagement: React.FC<{ user: User }> = ({ user }) => {
     const handleDelete = async (id: number) => {
         if (!window.confirm("Delete this department?")) return;
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:8080/api/departments/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-            if (res.ok) { showToast('Department removed.', 'success'); fetchDepartments(); }
+            const res = await api.delete(`/departments/${id}`);
+            if (res.status === 200 || res.status === 204) { showToast('Department removed.', 'success'); fetchDepartments(); }
             else showToast('Failed to delete.', 'error');
         } catch { showToast('Delete failed', 'error'); }
     };

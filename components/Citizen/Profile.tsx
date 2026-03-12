@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { User as UserType } from '../../types';
 import { User, Mail, Phone, MapPin, Shield, Lock, Save, Loader2, CheckCircle2 } from 'lucide-react';
+import api from '../../src/api';
 
 interface Props {
   user: UserType;
@@ -28,22 +29,15 @@ const Profile: React.FC<Props> = ({ user, onUpdate }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8080/api/auth/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          email: user.email, // using email as key for now
-          fullName: formData.fullName,
-          mobileNumber: formData.mobileNumber,
-          address: formData.address
-        })
+      // Note: api instance automatically handles the Authorization header
+      const response = await api.put('/auth/profile', {
+        email: user.email, // using email as key for now
+        fullName: formData.fullName,
+        mobileNumber: formData.mobileNumber,
+        address: formData.address
       });
 
-      if (response.ok) {
+      if (response.status === 200) {
         setSuccess(true);
         // Optimistic update of local user state
         onUpdate({

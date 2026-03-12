@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { User } from '../../types';
 import { FilePlus, MapPin, ListTodo, HelpCircle, Bell, ChevronRight, Activity, TrendingUp } from 'lucide-react';
-import axios from 'axios';
+import api from '../../src/api';
 import { motion } from 'framer-motion';
 
 const Dashboard: React.FC<{ user: User }> = ({ user }) => {
@@ -12,10 +12,7 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
   React.useEffect(() => {
     const fetchComplaints = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:8080/api/complaints/my', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await api.get('/complaints/my');
 
         // Sort by date desc
         setComplaints(res.data.sort((a: any, b: any) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()));

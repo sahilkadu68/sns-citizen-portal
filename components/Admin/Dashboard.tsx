@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, ComplaintStatus } from '../../types';
 import { ListTodo, PieChart, Users, Map, Plus, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import api from '../../src/api';
 
 const Dashboard: React.FC<{ user: User }> = ({ user }) => {
   const navigate = useNavigate();
@@ -13,15 +14,10 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const headers = { Authorization: `Bearer ${token}` };
-
-
-
         // 2. Fetch All for Recent & Client-side stats (Detailed breakdown)
-        const resComplaints = await fetch('http://localhost:8080/api/complaints/all', { headers });
-        if (resComplaints.ok) {
-          const complaints = await resComplaints.json();
+        const resComplaints = await api.get('/complaints/all');
+        if (resComplaints.status === 200) {
+          const complaints = resComplaints.data;
           setRecent(complaints.slice(0, 5));
 
           // Hybrid approach: Use client calculations for statuses, Server for SLA/Overdue
@@ -35,16 +31,16 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
         }
 
         // 3. Fetch Summary for Overdue (Server-side logic)
-        const resAnalytics = await fetch('http://localhost:8080/api/analytics/summary', { headers });
-        if (resAnalytics.ok) {
-          const analytics = await resAnalytics.json();
+        const resAnalytics = await api.get('/analytics/summary');
+        if (resAnalytics.status === 200) {
+          const analytics = resAnalytics.data;
           setStats(prev => ({ ...prev, overdue: analytics.overdue }));
         }
 
         // 4. Fetch Zone Performance
-        const resZones = await fetch('http://localhost:8080/api/analytics/zone-performance', { headers });
-        if (resZones.ok) {
-          const zones: any[] = await resZones.json();
+        const resZones = await api.get('/analytics/zone-performance');
+        if (resZones.status === 200) {
+          const zones: any[] = resZones.data;
           // Calculate total for percentage
           const total = zones.reduce((acc, curr) => acc + (curr.value as number), 0);
 

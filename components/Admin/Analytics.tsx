@@ -4,7 +4,7 @@ import {
   LineChart, Line, PieChart, Pie, Cell
 } from 'recharts';
 import { TrendingUp, AlertCircle, CheckCircle, Clock, BarChart3, X, MapPin, Calendar, Tag, User, ChevronRight } from 'lucide-react';
-import axios from 'axios';
+import api from '../../src/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
@@ -43,11 +43,11 @@ const Analytics: React.FC = () => {
       const headers = { Authorization: `Bearer ${token}` };
       try {
         const [trendRes, catRes, zoneRes, sumRes, complaintsRes] = await Promise.all([
-          axios.get('http://localhost:8080/api/analytics/daily-trend', { headers }),
-          axios.get('http://localhost:8080/api/analytics/category-distribution', { headers }),
-          axios.get('http://localhost:8080/api/analytics/zone-performance', { headers }),
-          axios.get('http://localhost:8080/api/analytics/summary', { headers }),
-          axios.get('http://localhost:8080/api/complaints/all', { headers }),
+          api.get('/analytics/daily-trend'),
+          api.get('/analytics/category-distribution'),
+          api.get('/analytics/zone-performance'),
+          api.get('/analytics/summary'),
+          api.get('/complaints/all'),
         ]);
         setTrendData(trendRes.data.reverse());
         setCategoryData(catRes.data);

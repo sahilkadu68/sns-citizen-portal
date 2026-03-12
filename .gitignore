@@ -22,3 +22,21 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Java / Maven / Spring Boot
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# Local compilation & execution logs
+build_log.txt
+compile_errors.txt
+out.txt
+output.txt
+
+# Environment and Secrets
+.env
+.env.*

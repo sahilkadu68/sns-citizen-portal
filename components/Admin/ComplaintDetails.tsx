@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Complaint, ComplaintStatus } from '../../types';
 import { ChevronLeft, MapPin, Calendar, User as UserIcon, AlertCircle, CheckCircle, Upload, Loader2, Clock, AlertTriangle } from 'lucide-react';
-import axios from 'axios';
+import api from '../../src/api';
 import { motion } from 'framer-motion';
 
 const ComplaintDetails: React.FC = () => {
@@ -17,11 +17,7 @@ const ComplaintDetails: React.FC = () => {
     useEffect(() => {
         const fetchComplaint = async () => {
             try {
-                const token = localStorage.getItem('token');
-                // If ID is not a number, we need to find it differently or just assume it is ID
-                const res = await axios.get(`http://localhost:8080/api/complaints/${id}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                const res = await api.get(`/complaints/${id}`);
                 setComplaint(res.data);
                 setStatus(res.data.status);
             } catch (err) {
@@ -35,16 +31,14 @@ const ComplaintDetails: React.FC = () => {
 
     const handleStatusUpdate = async () => {
         try {
-            const token = localStorage.getItem('token');
             const formData = new FormData();
             formData.append('status', status as string);
             if (proof) {
                 formData.append('proof', proof);
             }
 
-            await axios.put(`http://localhost:8080/api/complaints/${id}/resolve`, formData, {
+            await api.put(`/complaints/${id}/resolve`, formData, {
                 headers: {
-                    Authorization: `Bearer ${token}`,
                     'Content-Type': 'multipart/form-data'
                 }
             });
@@ -216,10 +210,7 @@ const ComplaintDetails: React.FC = () => {
                                             onClick={async () => {
                                                 if (!window.confirm("Are you sure you want to escalate this complaint?")) return;
                                                 try {
-                                                    const token = localStorage.getItem('token');
-                                                    await axios.put(`http://localhost:8080/api/complaints/${id}/escalate`, {}, {
-                                                        headers: { Authorization: `Bearer ${token}` }
-                                                    });
+                                                    await api.put(`/complaints/${id}/escalate`, {});
                                                     alert('Complaint Escalated!');
                                                     navigate('/admin/complaints');
                                                 } catch (e) { console.error(e); alert('Escalation failed'); }

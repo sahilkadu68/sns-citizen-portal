@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, ComplaintStatus, ComplaintPriority } from '../../types';
 import { LayoutList, Map as MapIcon, ChevronRight, Loader2, Filter, ShieldCheck } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import axios from 'axios';
+import api from '../../src/api';
 import L from 'leaflet';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -30,17 +30,7 @@ const ComplaintManagement: React.FC<{ user: User }> = ({ user }) => {
 
     const fetchComplaints = async () => {
       try {
-        const token = localStorage.getItem('token');
-
-        const res = await axios.get(
-          'http://localhost:8080/api/complaints/all',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        );
-
+        const res = await api.get('/complaints/all');
         setComplaints(res.data);
       } catch (err: any) {
         console.error('Failed to load complaints', err.response?.data || err);

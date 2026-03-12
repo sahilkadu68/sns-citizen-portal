@@ -96,7 +96,6 @@ const LandingPage: React.FC<Props> = ({ user }) => {
                         </Link>
 
 
-
                         <div className="hidden md:flex items-center gap-4">
                             {user ? (
                                 <Link to={dashboardPath!}>

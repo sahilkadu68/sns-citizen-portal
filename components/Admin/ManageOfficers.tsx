@@ -3,6 +3,8 @@ import { User } from '../../types';
 import { Plus, User as UserIcon, Trash2, Mail, Phone, Shield, Loader2, Check, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import api from '../../src/api';
+
 const ManageOfficers: React.FC<{ user: User }> = ({ user }) => {
     const [officers, setOfficers] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -13,9 +15,8 @@ const ManageOfficers: React.FC<{ user: User }> = ({ user }) => {
 
     const fetchOfficers = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:8080/api/officers/department', { headers: { Authorization: `Bearer ${token}` } });
-            if (res.ok) setOfficers(await res.json());
+            const res = await api.get('/officers/department');
+            if (res.status === 200) setOfficers(res.data);
         } catch (e) { console.error(e); }
     };
 
@@ -29,19 +30,13 @@ const ManageOfficers: React.FC<{ user: User }> = ({ user }) => {
         if (!newOfficer.fullName.trim() || !newOfficer.email.trim() || !newOfficer.password.trim()) return;
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:8080/api/officers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify(newOfficer)
-            });
-            if (res.ok) {
+            const res = await api.post('/officers', newOfficer);
+            if (res.status === 200 || res.status === 201) {
                 setNewOfficer({ fullName: '', email: '', phoneNumber: '', password: '', employeeId: '' });
                 showToast('Officer added successfully!', 'success');
                 fetchOfficers();
             } else {
-                const err = await res.json();
-                showToast(err.message || 'Failed to add officer', 'error');
+                showToast(res.data?.message || 'Failed to add officer', 'error');
             }
         } catch { showToast('Failed to add officer', 'error'); }
         finally { setLoading(false); }
@@ -50,9 +45,8 @@ const ManageOfficers: React.FC<{ user: User }> = ({ user }) => {
     const handleDelete = async (id: number) => {
         if (!window.confirm("Remove this officer from the department?")) return;
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:8080/api/officers/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-            if (res.ok) { showToast('Officer removed.', 'success'); fetchOfficers(); }
+            const res = await api.delete(`/officers/${id}`);
+            if (res.status === 200 || res.status === 204) { showToast('Officer removed.', 'success'); fetchOfficers(); }
             else showToast('Failed to delete.', 'error');
         } catch { showToast('Delete failed', 'error'); }
     };

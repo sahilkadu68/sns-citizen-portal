@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ComplaintStatus } from '../../types';
 import { Clock, CheckCircle, ExternalLink, Activity, Filter, Loader2, MapPin } from 'lucide-react';
-import axios from 'axios';
+import api from '../../src/api';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -16,16 +16,7 @@ const ComplaintTracking: React.FC<{ user: any }> = ({ user }) => {
   useEffect(() => {
     const fetchComplaints = async () => {
       try {
-        const token = localStorage.getItem('token');
-
-        const res = await axios.get(
-          'http://localhost:8080/api/complaints/my',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        );
+        const res = await api.get('/complaints/my');
 
         setComplaints(res.data);
       } catch (err) {

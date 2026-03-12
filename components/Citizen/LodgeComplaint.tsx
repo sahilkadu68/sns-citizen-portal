@@ -5,7 +5,7 @@ import { User, ComplaintStatus, ComplaintPriority } from '../../types';
 import { Camera, MapPin, Send, CheckCircle2, Search, Loader2, X, Crosshair, FilePlus, Trash2, Map as MapIcon, Navigation } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap, Polygon } from 'react-leaflet';
 import L from 'leaflet';
-import axios from 'axios';
+import api from '../../src/api';
 import { motion } from 'framer-motion';
 
 
@@ -79,10 +79,7 @@ const LodgeComplaint: React.FC<{ user: User }> = ({ user }) => {
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
-        const token = localStorage.getItem("token") || user.token;
-        const res = await axios.get('http://localhost:8080/api/departments', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await api.get('/departments');
         setDepartments(res.data);
       } catch (err) {
         console.error("Failed to load categories", err);
@@ -261,8 +258,8 @@ const LodgeComplaint: React.FC<{ user: User }> = ({ user }) => {
         base64Image = await convertBase64(formData.image) as string;
       }
 
-      await axios.post(
-        'http://localhost:8080/api/complaints/lodge',
+      await api.post(
+        '/complaints/lodge',
         {
           title: formData.title,
           description: formData.description,
@@ -274,11 +271,6 @@ const LodgeComplaint: React.FC<{ user: User }> = ({ user }) => {
             name: formData.category
           },
           imageUrl: base64Image
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
         }
       );
 

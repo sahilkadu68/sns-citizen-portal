@@ -4,7 +4,7 @@ import {
   Shield, User, Mail, Phone, MapPin, Lock,
   ChevronRight, CheckCircle2, Loader2, AlertCircle, ArrowRight
 } from 'lucide-react';
-import axios from 'axios';
+import api from '../../src/api';
 import { motion } from 'framer-motion';
 
 const Register: React.FC = () => {
@@ -39,7 +39,7 @@ const Register: React.FC = () => {
     setLoading(true);
 
     try {
-      await axios.post('http://localhost:8080/api/auth/register', {
+      await api.post('/auth/register', {
         fullName: formData.fullName,
         email: formData.email,
         phoneNumber: formData.phone,
@@ -69,7 +69,7 @@ const Register: React.FC = () => {
     setError(null);
 
     try {
-      await axios.post('http://localhost:8080/api/auth/verify-otp', {
+      await api.post('/auth/verify-otp', {
         email: formData.email,
         otp: otp
       });
