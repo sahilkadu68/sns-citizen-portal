@@ -87,7 +87,7 @@ public class WebSecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         List<String> originsList = Arrays.asList(allowedOrigins.split(","));
-        config.setAllowedOrigins(originsList);
+        config.setAllowedOriginPatterns(originsList);
 
         config.setAllowedMethods(List.of(
                 "GET", "POST", "PUT", "DELETE", "OPTIONS"
