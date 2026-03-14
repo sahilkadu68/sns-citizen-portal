@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../src/api';
-import { ArrowLeft, Clock, MapPin, AlertTriangle, User, CheckCircle2, Loader2, Activity } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, AlertTriangle, User, CheckCircle2, Loader2, Activity, Star, Send } from 'lucide-react';
 import { ComplaintStatus } from '../../types';
 import { motion } from 'framer-motion';
 
@@ -16,6 +16,11 @@ const ComplaintDetails: React.FC = () => {
     const navigate = useNavigate();
     const [complaint, setComplaint] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [hoverRating, setHoverRating] = useState(0);
+    const [selectedRating, setSelectedRating] = useState(0);
+    const [feedbackText, setFeedbackText] = useState('');
+    const [feedbackLoading, setFeedbackLoading] = useState(false);
+    const [feedbackSent, setFeedbackSent] = useState(false);
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -162,44 +167,136 @@ const ComplaintDetails: React.FC = () => {
                         </div>
 
                         {/* Resolution Section if Resolved */}
-                        {complaint.status === 'RESOLVED' && (
+                        {(complaint.status === 'RESOLVED' || complaint.status === 'CLOSED') && (
                             <div className="mt-8 p-6 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-3xl border border-emerald-100/50 shadow-inner">
                                 <h3 className="flex items-center text-emerald-800 font-black mb-4 tracking-tight text-lg">
                                     <CheckCircle2 size={24} className="mr-2 text-emerald-500" /> Resolution Report
                                 </h3>
-                                <p className="text-emerald-800 font-medium text-sm mb-4 leading-relaxed bg-white/50 p-4 rounded-2xl border border-emerald-100">{complaint.resolutionNotes}</p>
-                                {complaint.resolutionProofImage && (
+                                {complaint.resolutionNotes && (
+                                    <p className="text-emerald-800 font-medium text-sm mb-4 leading-relaxed bg-white/50 p-4 rounded-2xl border border-emerald-100">{complaint.resolutionNotes}</p>
+                                )}
+                                {complaint.resolutionProof && (
                                     <div className="rounded-2xl overflow-hidden border-4 border-white shadow-md">
-                                        <img src={complaint.resolutionProofImage} alt="Proof" className="w-full h-48 object-cover hover:scale-105 transition-transform duration-500" />
+                                        <img src={complaint.resolutionProof} alt="Proof" className="w-full h-48 object-cover hover:scale-105 transition-transform duration-500" />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Citizen Rating Section */}
+                        {(complaint.status === 'RESOLVED' || complaint.status === 'CLOSED') && (
+                            <div className="mt-6 p-6 bg-gradient-to-br from-amber-50 to-orange-50 rounded-3xl border border-amber-100 shadow-inner">
+                                {complaint.citizenRating || feedbackSent ? (
+                                    <div>
+                                        <h3 className="text-amber-800 font-black mb-3 tracking-tight text-lg flex items-center">
+                                            <Star size={20} className="mr-2 text-amber-500 fill-amber-500" /> Your Rating
+                                        </h3>
+                                        <div className="flex gap-1 mb-2">
+                                            {[1,2,3,4,5].map(s => (
+                                                <Star key={s} size={28} className={s <= (complaint.citizenRating || selectedRating) ? 'text-amber-400 fill-amber-400' : 'text-slate-200'} />
+                                            ))}
+                                        </div>
+                                        {(complaint.citizenFeedback || feedbackText) && (
+                                            <p className="text-amber-800 text-sm font-medium italic bg-white/50 p-3 rounded-xl border border-amber-100">
+                                                "{complaint.citizenFeedback || feedbackText}"
+                                            </p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <h3 className="text-amber-800 font-black mb-3 tracking-tight text-lg">Rate This Resolution</h3>
+                                        <p className="text-amber-700 text-sm mb-4 font-medium">How satisfied are you with how your complaint was resolved?</p>
+                                        <div className="flex gap-2 mb-4">
+                                            {[1,2,3,4,5].map(s => (
+                                                <button
+                                                    key={s}
+                                                    onMouseEnter={() => setHoverRating(s)}
+                                                    onMouseLeave={() => setHoverRating(0)}
+                                                    onClick={() => setSelectedRating(s)}
+                                                    className="transition-transform hover:scale-125"
+                                                >
+                                                    <Star size={32} className={s <= (hoverRating || selectedRating) ? 'text-amber-400 fill-amber-400' : 'text-slate-200'} />
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <textarea
+                                            placeholder="Share your experience (optional)..."
+                                            value={feedbackText}
+                                            onChange={e => setFeedbackText(e.target.value)}
+                                            className="w-full p-4 bg-white rounded-2xl border border-amber-200 text-sm font-medium resize-none h-20 focus:ring-2 focus:ring-amber-300 outline-none"
+                                        />
+                                        <button
+                                            disabled={!selectedRating || feedbackLoading}
+                                            onClick={async () => {
+                                                setFeedbackLoading(true);
+                                                try {
+                                                    await api.post(`/complaints/${complaint.complaintId}/feedback`, {
+                                                        rating: selectedRating,
+                                                        feedback: feedbackText
+                                                    });
+                                                    setFeedbackSent(true);
+                                                } catch (err) {
+                                                    alert('Failed to submit feedback');
+                                                } finally {
+                                                    setFeedbackLoading(false);
+                                                }
+                                            }}
+                                            className="mt-3 w-full py-3 bg-amber-500 text-white rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-amber-600 transition-colors disabled:opacity-40 shadow-lg shadow-amber-500/20"
+                                        >
+                                            {feedbackLoading ? <Loader2 className="animate-spin" size={18}/> : <><Send size={16}/> Submit Rating</>}
+                                        </button>
                                     </div>
                                 )}
                             </div>
                         )}
                     </div>
 
-                    {/* Image Evidence Column */}
+                    {/* Photo Evidence Column — Before/After Timeline */}
                     <div className="lg:col-span-2">
-                        <div className="sticky top-28">
-                            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div> Photo Evidence
-                            </h3>
-                            <div className="aspect-[4/5] bg-slate-100/50 rounded-[2rem] border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden relative shadow-inner">
-                                {complaint.imageUrl ? (
-                                    <img
-                                        src={complaint.imageUrl}
-                                        alt="Evidence"
-                                        className="w-full h-full object-cover transition-transform hover:scale-110 duration-700"
-                                    />
-                                ) : (
-                                    <div className="text-center text-slate-400 p-6">
-                                        <AlertTriangle size={64} className="mx-auto mb-4 opacity-40 text-slate-400" />
-                                        <p className="text-sm font-black uppercase tracking-widest">No Image Attached</p>
-                                    </div>
-                                )}
+                        <div className="sticky top-28 space-y-6">
+                            {/* Before: Citizen Evidence */}
+                            <div>
+                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div> Before — Citizen Evidence
+                                </h3>
+                                <div className="aspect-[4/3] bg-slate-100/50 rounded-[2rem] border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden relative shadow-inner">
+                                    {complaint.imageUrl ? (
+                                        <img src={complaint.imageUrl} alt="Before" className="w-full h-full object-cover transition-transform hover:scale-110 duration-700" />
+                                    ) : (
+                                        <div className="text-center text-slate-400 p-6">
+                                            <AlertTriangle size={48} className="mx-auto mb-3 opacity-40" />
+                                            <p className="text-xs font-black uppercase tracking-widest">No Image Attached</p>
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-center text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-widest">
+                                    Uploaded {new Date(complaint.submittedAt).toLocaleDateString()}
+                                </p>
                             </div>
-                            <p className="text-center text-[10px] text-slate-400 mt-4 font-bold uppercase tracking-widest">
-                                Uploaded at {new Date(complaint.submittedAt).toLocaleTimeString()}
-                            </p>
+
+                            {/* After: Resolution Proof */}
+                            {(complaint.status === 'RESOLVED' || complaint.status === 'CLOSED') && (
+                                <div>
+                                    <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> After — Resolution Proof
+                                    </h3>
+                                    <div className="aspect-[4/3] bg-emerald-50/50 rounded-[2rem] border-2 border-dashed border-emerald-200 flex items-center justify-center overflow-hidden relative shadow-inner">
+                                        {complaint.resolutionProof ? (
+                                            <img src={complaint.resolutionProof} alt="After" className="w-full h-full object-cover transition-transform hover:scale-110 duration-700" />
+                                        ) : (
+                                            <div className="text-center text-emerald-400 p-6">
+                                                <CheckCircle2 size={48} className="mx-auto mb-3 opacity-40" />
+                                                <p className="text-xs font-black uppercase tracking-widest">No Proof Uploaded</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {complaint.resolvedAt && (
+                                        <p className="text-center text-[10px] text-emerald-500 mt-2 font-bold uppercase tracking-widest">
+                                            Resolved {new Date(complaint.resolvedAt).toLocaleDateString()}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 

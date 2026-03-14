@@ -79,6 +79,16 @@ public class Complaint {
     @JoinColumn(name = "assigned_to")
     private Administrator assignedTo;
 
+    // F1: Citizen Feedback & Rating
+    private Integer citizenRating; // 1-5 stars
+    @Column(columnDefinition = "TEXT")
+    private String citizenFeedback;
+
+    // F9: Duplicate Complaint Detection
+    @Column(nullable = false)
+    private Integer duplicateCount = 0;
+    private Long parentComplaintId; // links duplicate to original
+
     public enum Status {
         PENDING, RESOLVED, CLOSED, REJECTED
     }

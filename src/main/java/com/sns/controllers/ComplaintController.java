@@ -52,6 +52,7 @@ public class ComplaintController {
     public ResponseEntity<?> resolveComplaint(
             @PathVariable Long id,
             @RequestParam("status") String status,
+            @RequestParam(value = "notes", required = false) String notes,
             @RequestParam(value = "proof", required = false) org.springframework.web.multipart.MultipartFile proof
     ) {
         String proofBase64 = null;
@@ -65,7 +66,7 @@ public class ComplaintController {
         }
 
         Complaint.Status complaintStatus = Complaint.Status.valueOf(status);
-        Complaint updated = complaintService.updateStatus(id, complaintStatus, proofBase64);
+        Complaint updated = complaintService.updateStatus(id, complaintStatus, notes, proofBase64);
 
         return ResponseEntity.ok(updated);
     }
@@ -83,7 +84,7 @@ public class ComplaintController {
     @PostMapping("/{id}/confirm")
     @PreAuthorize("hasAuthority('ROLE_CITIZEN')")
     public ResponseEntity<?> confirmResolution(@PathVariable Long id) {
-        complaintService.updateStatus(id, Complaint.Status.CLOSED, null);
+        complaintService.updateStatus(id, Complaint.Status.CLOSED, null, null);
         return ResponseEntity.ok("Complaint successfully closed.");
     }
 
@@ -127,4 +128,95 @@ public class ComplaintController {
                 complaintService.getComplaintsByUserEmail(authentication.getName())
         );
     }
+
+    // ===============================
+    // CITIZEN – RATE & FEEDBACK
+    // ===============================
+    @PostMapping("/{id}/feedback")
+    @PreAuthorize("hasAuthority('ROLE_CITIZEN')")
+    public ResponseEntity<?> submitFeedback(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, Object> body,
+            Authentication authentication
+    ) {
+        try {
+            Complaint complaint = complaintService.getComplaintById(id);
+            
+            // Verify ownership
+            if (!complaint.getUser().getEmail().equals(authentication.getName())) {
+                return ResponseEntity.status(403).body("You can only rate your own complaints");
+            }
+            // Only allow rating on resolved/closed complaints
+            if (complaint.getStatus() != Complaint.Status.RESOLVED && complaint.getStatus() != Complaint.Status.CLOSED) {
+                return ResponseEntity.badRequest().body("Can only rate resolved/closed complaints");
+            }
+            
+            Integer rating = (Integer) body.get("rating");
+            String feedback = (String) body.get("feedback");
+            
+            if (rating == null || rating < 1 || rating > 5) {
+                return ResponseEntity.badRequest().body("Rating must be between 1 and 5");
+            }
+            
+            complaint.setCitizenRating(rating);
+            complaint.setCitizenFeedback(feedback);
+            complaintService.saveComplaint(complaint);
+            
+            return ResponseEntity.ok(java.util.Map.of("message", "Feedback submitted successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+    }
+
+    // ===============================
+    // F9: DUPLICATE DETECTION
+    // ===============================
+    @PostMapping("/check-duplicates")
+    @PreAuthorize("hasAuthority('ROLE_CITIZEN')")
+    public ResponseEntity<?> checkDuplicates(@RequestBody java.util.Map<String, Object> body) {
+        String category = (String) body.get("category");
+        Double lat = Double.parseDouble(body.get("latitude").toString());
+        Double lng = Double.parseDouble(body.get("longitude").toString());
+        
+        return ResponseEntity.ok(complaintService.findPotentialDuplicates(category, lat, lng));
+    }
+
+    @PostMapping("/{parentId}/link-duplicate")
+    @PreAuthorize("hasAuthority('ROLE_CITIZEN')")
+    public ResponseEntity<?> linkDuplicate(
+            @PathVariable Long parentId,
+            @RequestBody java.util.Map<String, Object> body,
+            Authentication authentication
+    ) {
+        try {
+            Complaint child = complaintService.submitComplaint(
+                buildComplaintFromBody(body), authentication.getName());
+            complaintService.linkAsDuplicate(parentId, child.getComplaintId());
+            return ResponseEntity.ok(java.util.Map.of(
+                "message", "Your complaint has been linked to an existing report. You'll receive updates when it's resolved.",
+                "parentComplaintId", parentId,
+                "yourComplaintId", child.getComplaintId()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+    }
+
+    private Complaint buildComplaintFromBody(java.util.Map<String, Object> body) {
+        Complaint c = new Complaint();
+        c.setTitle((String) body.get("title"));
+        c.setDescription((String) body.get("description"));
+        c.setAddress((String) body.get("address"));
+        c.setLatitude(Double.parseDouble(body.get("latitude").toString()));
+        c.setLongitude(Double.parseDouble(body.get("longitude").toString()));
+        c.setPriority(Complaint.Priority.valueOf(body.get("priority").toString()));
+        
+        com.sns.models.Category cat = new com.sns.models.Category();
+        cat.setName((String) body.get("category"));
+        c.setCategory(cat);
+        
+        if (body.get("imageUrl") != null) c.setImageUrl((String) body.get("imageUrl"));
+        return c;
+    }
 }
+

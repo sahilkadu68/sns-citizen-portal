@@ -54,6 +54,11 @@ const LodgeComplaint: React.FC<{ user: User }> = ({ user }) => {
   const [geocoding, setGeocoding] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // F9: Duplicate Detection State
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+  const [potentialDuplicates, setPotentialDuplicates] = useState<any[]>([]);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+
   // State for Pin Location (marker)
   const [position, setPosition] = useState<[number, number]>([19.0330, 73.0297]);
 
@@ -235,19 +240,11 @@ const LodgeComplaint: React.FC<{ user: User }> = ({ user }) => {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!address) {
-      alert("Please select a location on the map.");
-      return;
-    }
-
+  const proceedWithLodge = async (linkParentId?: number) => {
     setLoading(true);
-
+    setShowDuplicateModal(false);
     try {
       const token = localStorage.getItem("token") || user.token;
-
       if (!token) {
         alert("Authentication error. Please log in again.");
         return;
@@ -258,21 +255,29 @@ const LodgeComplaint: React.FC<{ user: User }> = ({ user }) => {
         base64Image = await convertBase64(formData.image) as string;
       }
 
-      await api.post(
-        '/complaints/lodge',
-        {
+      if (linkParentId) {
+        await api.post(`/complaints/${linkParentId}/link-duplicate`, {
           title: formData.title,
           description: formData.description,
           latitude: position[0],
           longitude: position[1],
           address: address,
           priority: formData.priority,
-          category: {
-            name: formData.category
-          },
+          category: formData.category,
           imageUrl: base64Image
-        }
-      );
+        });
+      } else {
+        await api.post('/complaints/lodge', {
+          title: formData.title,
+          description: formData.description,
+          latitude: position[0],
+          longitude: position[1],
+          address: address,
+          priority: formData.priority,
+          category: { name: formData.category },
+          imageUrl: base64Image
+        });
+      }
 
       setSuccess(true);
       setTimeout(() => navigate("/citizen/track"), 2000);
@@ -281,7 +286,39 @@ const LodgeComplaint: React.FC<{ user: User }> = ({ user }) => {
       alert("Failed to lodge complaint. Please try again.");
     } finally {
       setLoading(false);
+      setCheckingDuplicates(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!address) {
+      alert("Please select a location on the map.");
+      return;
+    }
+
+    setCheckingDuplicates(true);
+    try {
+      // 1. Check for duplicates first
+      const res = await api.post('/complaints/check-duplicates', {
+        category: formData.category,
+        latitude: position[0],
+        longitude: position[1]
+      });
+
+      if (res.data && res.data.length > 0) {
+        setPotentialDuplicates(res.data);
+        setShowDuplicateModal(true);
+        setCheckingDuplicates(false);
+        return; // Pause submit
+      }
+    } catch (e) {
+      console.error("Duplicate check failed", e);
+    }
+    
+    // 2. No duplicates found, or error, proceed normally
+    proceedWithLodge();
   };
 
   if (success) {
@@ -310,7 +347,58 @@ const LodgeComplaint: React.FC<{ user: User }> = ({ user }) => {
   };
 
   return (
-    <motion.div initial="hidden" animate="visible" variants={containerVars} className="max-w-7xl mx-auto px-4 pb-20 font-sans">
+    <motion.div initial="hidden" animate="visible" variants={containerVars} className="max-w-7xl mx-auto px-4 pb-20 font-sans relative">
+      
+      {/* Duplicate Modal */}
+      {showDuplicateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-8 border border-slate-100 relative max-h-[90vh] overflow-y-auto">
+            <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mb-6 border border-amber-200">
+              <Crosshair size={32} />
+            </div>
+            <h2 className="text-2xl font-black text-slate-900 mb-2">Similar Issues Nearby</h2>
+            <p className="text-slate-500 mb-6">We found {potentialDuplicates.length} pending report(s) in the same category within 500 meters of your selected location. Linking your report prioritizes the issue and tracks it together.</p>
+            
+            <div className="space-y-4 mb-8">
+              {potentialDuplicates.map(dup => (
+                <div key={dup.complaintId} className="p-5 border-2 border-slate-100 rounded-2xl hover:border-blue-200 transition-colors bg-slate-50 hover:bg-white text-left group">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{dup.complaintNumber}</span>
+                    <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">{dup.distanceKm * 1000}m away</span>
+                  </div>
+                  <h3 className="font-bold text-slate-800 mb-1 leading-snug">{dup.title}</h3>
+                  <p className="text-xs text-slate-500 mb-4 line-clamp-2">{dup.description}</p>
+                  <button 
+                    onClick={() => proceedWithLodge(dup.complaintId)}
+                    disabled={loading}
+                    className="w-full py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl text-sm group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-200 transition-all flex justify-center items-center"
+                  >
+                     <CheckCircle2 size={16} className="mr-2" /> Yes, Link to This Issue
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-100">
+              <button 
+                onClick={() => proceedWithLodge()}
+                disabled={loading}
+                className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-slate-800 transition-colors"
+              >
+                No, Submit as New Report
+              </button>
+              <button 
+                onClick={() => setShowDuplicateModal(false)}
+                disabled={loading}
+                className="py-4 px-6 bg-slate-100 text-slate-500 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <motion.div variants={itemVars} className="mb-10">
         <h1 className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">Lodge Grievance</h1>
         <p className="text-slate-500 font-medium text-lg mt-2">Provide specific location and incident details for faster resolution in the MMR region.</p>
@@ -545,10 +633,10 @@ const LodgeComplaint: React.FC<{ user: User }> = ({ user }) => {
               whileHover={{ y: -2, boxShadow: "0 20px 25px -5px rgba(37, 99, 235, 0.2)" }}
               whileTap={{ y: 0 }}
               type="submit"
-              disabled={loading || geocoding}
+              disabled={loading || geocoding || checkingDuplicates}
               className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-3xl font-black text-[13px] tracking-widest uppercase shadow-xl shadow-blue-500/30 transition-all disabled:opacity-50 flex items-center justify-center gap-3 mt-8"
             >
-              {loading ? <Loader2 className="animate-spin" size={24} /> : <><Send size={20} /> <span>Submit to Authorities</span></>}
+              {loading || checkingDuplicates ? <Loader2 className="animate-spin" size={24} /> : <><Send size={20} /> <span>Submit to Authorities</span></>}
             </motion.button>
           </form>
         </motion.div>

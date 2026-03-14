@@ -59,7 +59,8 @@ public class WebSecurityConfig {
                 // 🔓 AUTH APIs
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Explicitly allow CORS preflight
                 .requestMatchers(HttpMethod.PUT, "/api/auth/profile").authenticated() // Explicitly allow profile update
-                .requestMatchers("/api/auth/**").permitAll() // Covers login, register, AND fix-admin
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/analytics/public-stats").permitAll()
                 .requestMatchers("/api/test/**").permitAll()
 
                 // 🔓 COMPLAINT LODGING (TEMP OPEN FOR DEBUG)

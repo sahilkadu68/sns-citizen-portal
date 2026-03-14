@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { Shield, Users, Activity, ChevronRight, Clock, MapPin, CheckCircle, ArrowRight, Star, Zap, Bell, Lock, Menu, X, ShieldCheck, BarChart3, Building2 } from 'lucide-react';
 import { User } from '../types';
+import api from '../src/api';
 
 interface Props {
     user: User | null;
@@ -12,16 +13,20 @@ const LandingPage: React.FC<Props> = ({ user }) => {
     const navigate = useNavigate();
     const [menuOpen, setMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+    const [liveStats, setLiveStats] = useState<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const { scrollYProgress } = useScroll({ target: containerRef });
     const blob1Y = useTransform(scrollYProgress, [0, 1], ['0%', '-30%']);
     const blob2Y = useTransform(scrollYProgress, [0, 1], ['0%', '20%']);
 
-    // Redirect logged-in user directly to dashboard on load
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 30);
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    useEffect(() => {
+        api.get('/analytics/public-stats').then(res => setLiveStats(res.data)).catch(() => {});
     }, []);
 
     const dashboardPath = user
@@ -36,7 +41,12 @@ const LandingPage: React.FC<Props> = ({ user }) => {
         visible: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.7, delay: i * 0.15, ease: [0.22, 1, 0.36, 1] } })
     };
 
-    const stats = [
+    const stats = liveStats ? [
+        { value: String(liveStats.totalComplaints || 0), label: 'Complaints Filed', icon: <CheckCircle size={24} className="text-green-500" /> },
+        { value: String(liveStats.resolvedComplaints || 0), label: 'Issues Resolved', icon: <Activity size={24} className="text-blue-500" /> },
+        { value: String(liveStats.activeCitizens || 0), label: 'Active Citizens', icon: <Users size={24} className="text-violet-500" /> },
+        { value: String(liveStats.departments || 0), label: 'Departments', icon: <Building2 size={24} className="text-orange-500" /> },
+    ] : [
         { value: 'GPS', label: 'Location Pinning', icon: <MapPin size={24} className="text-green-500" /> },
         { value: 'Live', label: 'Status Tracking', icon: <Activity size={24} className="text-blue-500" /> },
         { value: '7+', label: 'Gov. Departments', icon: <Building2 size={24} className="text-violet-500" /> },

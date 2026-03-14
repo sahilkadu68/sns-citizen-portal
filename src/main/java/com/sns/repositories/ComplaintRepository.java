@@ -38,4 +38,11 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
     
     @org.springframework.data.jpa.repository.Query("SELECT DATE(c.resolvedAt) as date, COUNT(c) FROM Complaint c WHERE c.status = 'RESOLVED' GROUP BY DATE(c.resolvedAt) ORDER BY date DESC")
     List<Object[]> countResolvedByDate();
+
+    // F9: Duplicate detection — find pending complaints in same category from last 30 days
+    List<Complaint> findByCategoryAndStatusAndSubmittedAtAfter(
+        com.sns.models.Category category, Complaint.Status status, java.time.LocalDateTime after);
+
+    // F9: Find all complaints linked as duplicates of a parent
+    List<Complaint> findByParentComplaintId(Long parentComplaintId);
 }

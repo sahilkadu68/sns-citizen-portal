@@ -39,6 +39,9 @@ public class ComplaintService {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private com.sns.services.AuditService auditService;
+
     /* =========================================================
        🔹 MAIN METHOD CALLED BY CONTROLLER
        ========================================================= */
@@ -319,16 +322,20 @@ public class ComplaintService {
     /* =========================================================
        🔹 UPDATE STATUS (USED BY CONTROLLER)
        ========================================================= */
-    public Complaint updateStatus(Long id, Complaint.Status status, String proof) {
+    public Complaint updateStatus(Long id, Complaint.Status status, String notes, String proof) {
         Complaint complaint = complaintRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Complaint not found"));
 
+        String oldStatus = complaint.getStatus().name();
         complaint.setStatus(status);
 
         if (status == Complaint.Status.RESOLVED) {
             complaint.setResolvedAt(LocalDateTime.now());
+            if (notes != null) {
+                complaint.setResolutionNotes(notes);
+            }
             if (proof != null) {
-                complaint.setResolutionProof(proof); // Store Base64
+                complaint.setResolutionProof(proof);
             }
         } else if (status == Complaint.Status.CLOSED || status == Complaint.Status.REJECTED) {
             complaint.setClosedAt(LocalDateTime.now());
@@ -336,7 +343,10 @@ public class ComplaintService {
 
         Complaint saved = complaintRepository.save(complaint);
 
-        // Email notification
+        // Audit log
+        auditService.log("STATUS_CHANGE", "system", saved.getComplaintId(), saved.getComplaintNumber(), oldStatus, status.name(), null);
+
+        // Email notification to primary user
         if (saved.getUser() != null) {
             emailService.sendStatusUpdateEmail(
                     saved.getUser().getEmail(),
@@ -344,6 +354,23 @@ public class ComplaintService {
                     status.name(),
                     saved.getTitle()
             );
+        }
+
+        // F9: Also notify all linked duplicate complaint owners
+        List<Complaint> linkedDuplicates = complaintRepository.findByParentComplaintId(saved.getComplaintId());
+        for (Complaint dup : linkedDuplicates) {
+            if (dup.getUser() != null) {
+                dup.setStatus(status);
+                if (status == Complaint.Status.RESOLVED) dup.setResolvedAt(LocalDateTime.now());
+                if (status == Complaint.Status.CLOSED) dup.setClosedAt(LocalDateTime.now());
+                complaintRepository.save(dup);
+                emailService.sendStatusUpdateEmail(
+                    dup.getUser().getEmail(),
+                    dup.getComplaintNumber(),
+                    status.name(),
+                    saved.getTitle() + " (linked complaint)"
+                );
+            }
         }
 
         return saved;
@@ -359,7 +386,61 @@ public class ComplaintService {
             complaint.setEscalatedAt(LocalDateTime.now());
             complaint.setSlaDeadline(LocalDateTime.now().plusDays(7));
             complaintRepository.save(complaint);
+            auditService.log("ESCALATION", "system", complaint.getComplaintId(), complaint.getComplaintNumber(), 
+                "Level " + currentLevel, "Level " + (currentLevel + 1), null);
         }
         return complaint;
+    }
+
+    /* =========================================================
+       🔹 F9: DUPLICATE DETECTION
+       ========================================================= */
+    public List<Map<String, Object>> findPotentialDuplicates(String categoryName, Double lat, Double lng) {
+        com.sns.models.Category category = categoryRepository.findByName(categoryName).orElse(null);
+        if (category == null) return List.of();
+
+        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+        List<Complaint> candidates = complaintRepository.findByCategoryAndStatusAndSubmittedAtAfter(
+            category, Complaint.Status.PENDING, thirtyDaysAgo);
+
+        List<Map<String, Object>> duplicates = new java.util.ArrayList<>();
+        for (Complaint c : candidates) {
+            double dist = distance(lat, lng, c.getLatitude(), c.getLongitude());
+            if (dist <= 0.5) { // Within 500m
+                Map<String, Object> match = new java.util.HashMap<>();
+                match.put("complaintId", c.getComplaintId());
+                match.put("complaintNumber", c.getComplaintNumber());
+                match.put("title", c.getTitle());
+                match.put("description", c.getDescription());
+                match.put("address", c.getAddress());
+                match.put("status", c.getStatus().name());
+                match.put("submittedAt", c.getSubmittedAt());
+                match.put("distanceKm", Math.round(dist * 1000.0) / 1000.0);
+                match.put("duplicateCount", c.getDuplicateCount());
+                duplicates.add(match);
+            }
+        }
+        return duplicates;
+    }
+
+    public void linkAsDuplicate(Long parentComplaintId, Long childComplaintId) {
+        Complaint parent = complaintRepository.findById(parentComplaintId)
+            .orElseThrow(() -> new RuntimeException("Parent complaint not found"));
+        Complaint child = complaintRepository.findById(childComplaintId)
+            .orElseThrow(() -> new RuntimeException("Child complaint not found"));
+
+        child.setParentComplaintId(parentComplaintId);
+        child.setStatus(parent.getStatus());
+        complaintRepository.save(child);
+
+        parent.setDuplicateCount(parent.getDuplicateCount() + 1);
+        complaintRepository.save(parent);
+
+        auditService.log("DUPLICATE_LINKED", child.getUser().getEmail(), parentComplaintId, parent.getComplaintNumber(),
+            null, child.getComplaintNumber(), "Complaint linked as duplicate");
+    }
+
+    public Complaint saveComplaint(Complaint complaint) {
+        return complaintRepository.save(complaint);
     }
 }

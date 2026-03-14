@@ -18,6 +18,12 @@ public class AnalyticsController {
     @Autowired
     private ComplaintRepository complaintRepository;
 
+    @Autowired
+    private com.sns.repositories.UserRepository userRepository;
+
+    @Autowired
+    private com.sns.repositories.DepartmentRepository departmentRepository;
+
     @GetMapping("/summary")
     public Map<String, Object> getSummary() {
         Map<String, Object> stats = new HashMap<>();
@@ -27,9 +33,6 @@ public class AnalyticsController {
         long resolved = allComplaints.stream().filter(c -> c.getStatus() == Complaint.Status.RESOLVED).count();
         long pending = allComplaints.stream().filter(c -> c.getStatus() == Complaint.Status.PENDING).count();
 
-        // Overdue = PENDING complaints that:
-        //   (a) have passed their current slaDeadline, OR
-        //   (b) have already been escalated (escalationLevel > 0, meaning they were once overdue)
         long overdue = allComplaints.stream()
             .filter(c -> c.getStatus() == Complaint.Status.PENDING)
             .filter(c -> {
@@ -39,10 +42,41 @@ public class AnalyticsController {
             })
             .count();
 
+        // Average citizen rating
+        double avgRating = allComplaints.stream()
+            .filter(c -> c.getCitizenRating() != null)
+            .mapToInt(Complaint::getCitizenRating)
+            .average()
+            .orElse(0.0);
+
         stats.put("total", total);
         stats.put("resolved", resolved);
         stats.put("pending", pending);
         stats.put("overdue", overdue);
+        stats.put("avgRating", Math.round(avgRating * 10.0) / 10.0);
+
+        return stats;
+    }
+
+    // Public stats for landing page (NO AUTH REQUIRED)
+    @GetMapping("/public-stats")
+    public Map<String, Object> getPublicStats() {
+        Map<String, Object> stats = new HashMap<>();
+        List<Complaint> allComplaints = complaintRepository.findAll();
+
+        stats.put("totalComplaints", allComplaints.size());
+        stats.put("resolvedComplaints", allComplaints.stream()
+            .filter(c -> c.getStatus() == Complaint.Status.RESOLVED || c.getStatus() == Complaint.Status.CLOSED)
+            .count());
+        stats.put("activeCitizens", userRepository.countByRole(com.sns.models.User.Role.ROLE_CITIZEN));
+        stats.put("departments", departmentRepository.count());
+        
+        double avgRating = allComplaints.stream()
+            .filter(c -> c.getCitizenRating() != null)
+            .mapToInt(Complaint::getCitizenRating)
+            .average()
+            .orElse(0.0);
+        stats.put("avgRating", Math.round(avgRating * 10.0) / 10.0);
 
         return stats;
     }
@@ -70,10 +104,8 @@ public class AnalyticsController {
         List<Object[]> lodgedData = complaintRepository.countComplaintsByDate();
         List<Object[]> resolvedData = complaintRepository.countResolvedByDate();
         
-        // Map Date -> {lodged: 0, resolved: 0}
-        Map<String, Map<String, Object>> mergedData = new java.util.TreeMap<>(); // TreeMap for sorted dates
+        Map<String, Map<String, Object>> mergedData = new java.util.TreeMap<>();
         
-        // Process Lodged
         for (Object[] row : lodgedData) {
             String date = row[0].toString();
             Long count = (Long) row[1];
@@ -83,26 +115,17 @@ public class AnalyticsController {
             mergedData.get(date).put("resolved", 0L);
         }
         
-        // Process Resolved
         for (Object[] row : resolvedData) {
             String date = row[0].toString();
             Long count = (Long) row[1];
             mergedData.putIfAbsent(date, new HashMap<>());
             mergedData.get(date).put("date", date);
-            // If "lodged" is missing, set to 0
             if (!mergedData.get(date).containsKey("lodged")) {
                 mergedData.get(date).put("lodged", 0L);
             }
             mergedData.get(date).put("resolved", count);
         }
         
-        // Limit to last 7-14 days? For now return all (or top 30)
-        // Taking the last 30 entries
-        List<Map<String, Object>> result = new ArrayList<>(mergedData.values());
-        // Reverse if TreeMap sorts ascending (oldest first). We want recent? 
-        // Actually TreeMap sorts ascending. Charts usually want chronological left-to-right.
-        // So ascending is Good for charts.
-        
-        return result; 
+        return new ArrayList<>(mergedData.values()); 
     }
 }

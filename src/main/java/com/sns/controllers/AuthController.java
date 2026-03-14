@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.security.SecureRandom;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -217,24 +218,73 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "User verified successfully"));
     }
 
-    // ==========================================
-    // 🚨 EMERGENCY FIX ENDPOINT
-    // ==========================================
-    @GetMapping("/fix-admin")
-    public ResponseEntity<?> fixAdminUser() {
-        String email = "admin@sns.gov.in";
-        Optional<User> existing = userRepository.findByEmail(email);
+    /* ===================== FORGOT PASSWORD (SEND OTP) ===================== */
 
-        if (existing.isPresent()) {
-            User user = existing.get();
-            // Force a known valid hash
-            user.setPasswordHash(encoder.encode("admin123")); 
-            user.setEnabled(true);
-            user.setRole(User.Role.ROLE_ADMIN);
-            userRepository.save(user);
-            return ResponseEntity.ok("✅ Admin password reset to 'admin123'. Login now!");
-        } else {
-            return ResponseEntity.badRequest().body("❌ Admin user not found. Run the SQL INSERT first.");
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        Optional<User> userOpt = userRepository.findByEmail(email);
+
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("No account found with this email");
         }
+
+        User user = userOpt.get();
+        String otp = String.valueOf(new SecureRandom().nextInt(900000) + 100000);
+        user.setOtp(otp);
+        user.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
+        userRepository.save(user);
+
+        emailService.sendOTPEmail(email, otp);
+
+        return ResponseEntity.ok(Map.of("message", "OTP sent to email. Valid for 10 minutes."));
+    }
+
+    /* ===================== VERIFY RESET OTP ===================== */
+
+    @PostMapping("/verify-reset-otp")
+    public ResponseEntity<?> verifyResetOtp(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String otp = request.get("otp");
+
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) return ResponseEntity.badRequest().body("User not found");
+
+        User user = userOpt.get();
+        if (user.getOtp() == null || !user.getOtp().equals(otp)) {
+            return ResponseEntity.badRequest().body("Invalid OTP");
+        }
+        if (user.getOtpExpiry().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.badRequest().body("OTP expired");
+        }
+
+        return ResponseEntity.ok(Map.of("message", "OTP verified. Proceed to reset password."));
+    }
+
+    /* ===================== RESET PASSWORD ===================== */
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String otp = request.get("otp");
+        String newPassword = request.get("newPassword");
+
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) return ResponseEntity.badRequest().body("User not found");
+
+        User user = userOpt.get();
+        if (user.getOtp() == null || !user.getOtp().equals(otp)) {
+            return ResponseEntity.badRequest().body("Invalid OTP");
+        }
+        if (user.getOtpExpiry().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.badRequest().body("OTP expired");
+        }
+
+        user.setPasswordHash(encoder.encode(newPassword));
+        user.setOtp(null);
+        user.setOtpExpiry(null);
+        userRepository.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "Password reset successful. Please login."));
     }
 }

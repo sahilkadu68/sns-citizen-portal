@@ -2,44 +2,65 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Shield, ArrowLeft, Key, Lock, CheckCircle2, Loader2 } from 'lucide-react';
+import api from '../../src/api';
 
 const ForgotPassword: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1); // 1: Email, 2: OTP, 3: New Password, 4: Success
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [passwords, setPasswords] = useState({ new: '', confirm: '' });
 
-  const handleSendOTP = (e: React.FormEvent) => {
+  const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    setError('');
+    try {
+      await api.post('/auth/forgot-password', { email });
       setStep(2);
-    }, 1500);
+    } catch (err: any) {
+      setError(err.response?.data || 'Failed to send OTP. Check your email.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleVerifyOTP = (e: React.FormEvent) => {
+  const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    setError('');
+    try {
+      await api.post('/auth/verify-reset-otp', { email, otp });
       setStep(3);
-    }, 1500);
+    } catch (err: any) {
+      setError(err.response?.data || 'Invalid or expired OTP.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleResetPassword = (e: React.FormEvent) => {
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwords.new !== passwords.confirm) {
-      alert("Passwords mismatch!");
+      setError("Passwords don't match!");
+      return;
+    }
+    if (passwords.new.length < 6) {
+      setError("Password must be at least 6 characters");
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    setError('');
+    try {
+      await api.post('/auth/reset-password', { email, otp, newPassword: passwords.new });
       setStep(4);
-    }, 2000);
+    } catch (err: any) {
+      setError(err.response?.data || 'Failed to reset password.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -69,6 +90,12 @@ const ForgotPassword: React.FC = () => {
           </p>
         </div>
 
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm font-bold text-center">
+            {error}
+          </div>
+        )}
+
         <div className="mt-10">
           {step === 1 && (
             <form onSubmit={handleSendOTP} className="space-y-6">
@@ -83,7 +110,7 @@ const ForgotPassword: React.FC = () => {
                   />
                 </div>
               </div>
-              <button disabled={loading} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100">
+              <button disabled={loading} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:bg-blue-700 transition-colors disabled:opacity-60">
                 {loading ? <Loader2 className="animate-spin mx-auto" /> : "SEND OTP CODE"}
               </button>
             </form>
@@ -100,7 +127,7 @@ const ForgotPassword: React.FC = () => {
                   value={otp} onChange={e => setOtp(e.target.value)}
                 />
               </div>
-              <button disabled={loading} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100">
+              <button disabled={loading} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:bg-blue-700 transition-colors disabled:opacity-60">
                 {loading ? <Loader2 className="animate-spin mx-auto" /> : "VERIFY CODE"}
               </button>
             </form>
@@ -114,7 +141,7 @@ const ForgotPassword: React.FC = () => {
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input 
-                      required type="password" placeholder="••••••••" 
+                      required type="password" placeholder="••••••••" minLength={6}
                       className="w-full pl-12 pr-4 py-4 bg-gray-50 border-0 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
                       value={passwords.new} onChange={e => setPasswords({...passwords, new: e.target.value})}
                     />
@@ -125,14 +152,14 @@ const ForgotPassword: React.FC = () => {
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input 
-                      required type="password" placeholder="••••••••" 
+                      required type="password" placeholder="••••••••" minLength={6}
                       className="w-full pl-12 pr-4 py-4 bg-gray-50 border-0 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
                       value={passwords.confirm} onChange={e => setPasswords({...passwords, confirm: e.target.value})}
                     />
                   </div>
                 </div>
               </div>
-              <button disabled={loading} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100">
+              <button disabled={loading} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:bg-blue-700 transition-colors disabled:opacity-60">
                 {loading ? <Loader2 className="animate-spin mx-auto" /> : "UPDATE PASSWORD"}
               </button>
             </form>
@@ -143,7 +170,7 @@ const ForgotPassword: React.FC = () => {
               <p className="text-gray-500">Your credentials have been successfully updated. You can now access your portal.</p>
               <button 
                 onClick={() => navigate('/login')}
-                className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100"
+                className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:bg-blue-700 transition-colors"
               >
                 SIGN IN NOW
               </button>

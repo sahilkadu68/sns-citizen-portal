@@ -1,12 +1,21 @@
 import React, { useEffect, useState, useRef } from 'react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell
-} from 'recharts';
-import { TrendingUp, AlertCircle, CheckCircle, Clock, BarChart3, X, MapPin, Calendar, Tag, User, ChevronRight } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { TrendingUp, AlertCircle, CheckCircle, Clock, BarChart3, X, MapPin, Calendar, Tag, User, ChevronRight, Download, Map as MapIcon } from 'lucide-react';
 import api from '../../src/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+
+const initLeafletIcon = () => {
+  const DefaultIcon = L.icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+  });
+  L.Marker.prototype.options.icon = DefaultIcon;
+};
 
 type DrillKey = 'total' | 'overdue' | 'resolved' | 'rate' | null;
 
@@ -56,8 +65,25 @@ const Analytics: React.FC = () => {
         setAllComplaints(complaintsRes.data);
       } catch (e) { console.error("Analytics fetch error", e); }
     };
+    initLeafletIcon();
     fetchData();
   }, []);
+
+  const handleExport = async () => {
+    try {
+      const res = await api.get('/reports/export?format=csv', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'sns_complaints_export.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (e) {
+      console.error("Export failed", e);
+      alert("Failed to export report.");
+    }
+  };
 
   const completionRate = summary.total > 0 ? Math.round((summary.resolved / summary.total) * 100) : 0;
 
@@ -106,12 +132,20 @@ const Analytics: React.FC = () => {
         className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 rounded-[2.5rem] p-8 sm:p-10 relative overflow-hidden shadow-2xl">
         <div className="absolute top-0 right-0 w-96 h-96 rounded-full border-[60px] border-white/5 -mr-20 -mt-20 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full border-[40px] border-indigo-400/10 -ml-10 -mb-10 pointer-events-none" />
-        <div className="relative z-10">
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 text-blue-300 text-[10px] font-black uppercase tracking-widest rounded-full border border-white/10 backdrop-blur-sm mb-4">
-            <BarChart3 size={12} /> Performance Intelligence
-          </span>
-          <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2">Grievance <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">Analytics</span></h1>
-          <p className="text-slate-400 font-medium text-sm">Live data analytics and SLA compliance metrics. <span className="text-blue-300 font-bold">Click any card below to view those complaints.</span></p>
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div>
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 text-blue-300 text-[10px] font-black uppercase tracking-widest rounded-full border border-white/10 backdrop-blur-sm mb-4">
+              <BarChart3 size={12} /> Performance Intelligence
+            </span>
+            <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2">Grievance <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">Analytics</span></h1>
+            <p className="text-slate-400 font-medium text-sm">Live data analytics and SLA compliance metrics. <span className="text-blue-300 font-bold">Click any card below to view those complaints.</span></p>
+          </div>
+          <button 
+            onClick={handleExport}
+            className="px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center border border-white/20 transition-all shadow-lg active:scale-95 shrink-0"
+          >
+            <Download className="mr-2" size={16} /> Export CSV Data
+          </button>
         </div>
       </motion.div>
 
@@ -275,6 +309,39 @@ const Analytics: React.FC = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Charts Row 2 - Heatmap Map */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+        className="bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-white p-8">
+        <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
+          <div className="w-2 h-6 bg-rose-500 rounded-full" /> Geographic Incident Heatmap
+        </h3>
+        <p className="text-slate-500 text-sm font-medium mt-1 mb-6 pl-4">Live tracking of all plotted complaints across the region.</p>
+        <div className="h-[450px] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-inner z-0 relative isolate">
+          <MapContainer center={[19.0330, 73.0297]} zoom={9} style={{ height: '100%', width: '100%' }}>
+            <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" attribution='&copy; OpenStreetMap contributors' />
+            {allComplaints.filter(c => c.latitude && c.longitude).map(c => (
+              <Marker key={c.complaintId} position={[c.latitude, c.longitude]}>
+                <Popup>
+                  <div className="font-sans min-w-[200px]">
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border mb-2 inline-block ${c.status === 'RESOLVED' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                      {c.status}
+                    </span>
+                    <p className="font-bold text-slate-800 text-sm leading-snug mb-1">{c.title}</p>
+                    <p className="text-xs text-slate-500 mb-2">{c.categoryName}</p>
+                    <button 
+                      onClick={() => navigate(`/admin/complaint/${c.complaintId}`)}
+                      className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-lg text-xs transition-colors"
+                    >
+                      View Issue
+                    </button>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
+        </div>
+      </motion.div>
 
       {/* Zone Bar Chart */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, ComplaintStatus } from '../../types';
-import { ListTodo, PieChart, Users, Map, Plus, ChevronRight } from 'lucide-react';
+import { ListTodo, PieChart, Users, Map, Plus, ChevronRight, ActivitySquare } from 'lucide-react';
 import { motion } from 'framer-motion';
 import api from '../../src/api';
 
@@ -10,6 +10,7 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
   const [stats, setStats] = useState({ new: 0, progress: 0, escalated: 0, overdue: 0 });
   const [recent, setRecent] = useState<any[]>([]);
   const [zoneData, setZoneData] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -49,6 +50,12 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
             value: total === 0 ? 0 : Math.round(((z.value as number) / total) * 100)
           }));
           setZoneData(formattedZones);
+        }
+
+        // 5. Fetch Audit Logs for Admins
+        if (user.role === 'ROLE_ADMIN') {
+          const resAudit = await api.get('/reports/audit-logs');
+          setAuditLogs(resAudit.data.slice(0, 5));
         }
 
       } catch (e) {
@@ -147,6 +154,31 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
               ))}
             </div>
           </div>
+
+          {user.role === 'ROLE_ADMIN' && (
+            <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/40 border border-slate-100 p-8 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+              <h3 className="font-black text-slate-900 mb-6 flex items-center text-lg tracking-tight relative z-10">
+                <ActivitySquare size={20} className="mr-2 text-slate-500" />
+                System Audit Log
+              </h3>
+              <div className="space-y-4 relative z-10">
+                {auditLogs.length === 0 ? <p className="text-slate-400 text-sm font-medium">No activity recorded</p> : auditLogs.map((log) => (
+                  <div key={log.id} className="pb-3 border-b border-slate-50 last:border-0 last:pb-0">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center justify-between mb-1">
+                      <span>{log.action}</span>
+                      <span>{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </p>
+                    <p className="text-sm font-bold text-slate-700 tracking-tight leading-snug">
+                      <span className="text-blue-600 font-mono text-[11px] mr-1">{log.complaintNumber}</span>
+                      {log.oldValue && log.newValue ? `changed from ${log.oldValue} to ${log.newValue}` : log.details || 'Action recorded'}
+                    </p>
+                    <p className="text-[10px] text-slate-500 truncate mt-1 font-medium">by {log.performedBy}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </motion.div>
       </div>
     </motion.div>

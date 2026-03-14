@@ -13,6 +13,7 @@ const ComplaintDetails: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState<ComplaintStatus | ''>('');
     const [proof, setProof] = useState<File | null>(null);
+    const [resolutionNotes, setResolutionNotes] = useState('');
 
     useEffect(() => {
         const fetchComplaint = async () => {
@@ -33,6 +34,9 @@ const ComplaintDetails: React.FC = () => {
         try {
             const formData = new FormData();
             formData.append('status', status as string);
+            if (resolutionNotes.trim() !== '') {
+                formData.append('notes', resolutionNotes);
+            }
             if (proof) {
                 formData.append('proof', proof);
             }
@@ -185,12 +189,23 @@ const ComplaintDetails: React.FC = () => {
                                 </div>
 
                                 {status === ComplaintStatus.RESOLVED && (
-                                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Upload Resolution Proof</label>
-                                        <div className="border-2 border-dashed border-blue-200 rounded-3xl p-8 text-center bg-white/50 hover:bg-white transition-colors cursor-pointer relative shadow-inner group">
-                                            <input type="file" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                                            <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 group-hover:bg-blue-100 transition-all"><Upload size={20} /></div>
-                                            <p className="text-sm font-black text-blue-700 tracking-tight">{proof ? proof.name : "Click or drag to upload photo"}</p>
+                                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Resolution Notes / Action Taken</label>
+                                            <textarea
+                                                value={resolutionNotes}
+                                                onChange={(e) => setResolutionNotes(e.target.value)}
+                                                placeholder="Describe how the issue was resolved..."
+                                                className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm font-medium text-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none resize-none h-24"
+                                            ></textarea>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Upload Resolution Photo</label>
+                                            <div className="border-2 border-dashed border-blue-200 rounded-3xl p-8 text-center bg-white/50 hover:bg-white transition-colors cursor-pointer relative shadow-inner group">
+                                                <input type="file" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                                                <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 group-hover:bg-blue-100 transition-all"><Upload size={20} /></div>
+                                                <p className="text-sm font-black text-blue-700 tracking-tight">{proof ? proof.name : "Click or drag to upload photo"}</p>
+                                            </div>
                                         </div>
                                     </motion.div>
                                 )}
