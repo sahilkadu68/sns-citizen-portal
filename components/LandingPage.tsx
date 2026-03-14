@@ -37,10 +37,10 @@ const LandingPage: React.FC<Props> = ({ user }) => {
     };
 
     const stats = [
-        { value: '24,500+', label: 'Complaints Resolved', icon: <CheckCircle size={24} className="text-green-500" /> },
-        { value: '50,000+', label: 'Active Citizens', icon: <Users size={24} className="text-blue-500" /> },
-        { value: '12+', label: 'Gov. Departments', icon: <Building2 size={24} className="text-violet-500" /> },
-        { value: '< 48h', label: 'Avg Resolution', icon: <Clock size={24} className="text-orange-500" /> },
+        { value: 'GPS', label: 'Location Pinning', icon: <MapPin size={24} className="text-green-500" /> },
+        { value: 'Live', label: 'Status Tracking', icon: <Activity size={24} className="text-blue-500" /> },
+        { value: '7+', label: 'Gov. Departments', icon: <Building2 size={24} className="text-violet-500" /> },
+        { value: 'SLA', label: 'Auto Escalation', icon: <Clock size={24} className="text-orange-500" /> },
     ];
 
     const features = [
@@ -73,11 +73,7 @@ const LandingPage: React.FC<Props> = ({ user }) => {
         },
     ];
 
-    const testimonials = [
-        { name: 'Priya Sharma', role: 'Resident, Navi Mumbai', quote: 'My complaint about the broken street light was resolved in just 36 hours! Amazing transparency.', rating: 5, avatar: 'PS' },
-        { name: 'Rakesh Gupta', role: 'Shop Owner, Thane', quote: 'Filed a drainage complaint after monsoons. The photo proof from the officer was very reassuring.', rating: 5, avatar: 'RG' },
-        { name: 'Anjali More', role: 'Student, Panvel', quote: 'I love the map feature to pinpoint the exact pothole location. Makes it so accurate!', rating: 5, avatar: 'AM' },
-    ];
+
 
     return (
         <div ref={containerRef} className="min-h-screen bg-[#f8fafc] font-sans overflow-x-hidden scroll-smooth">
@@ -134,7 +130,7 @@ const LandingPage: React.FC<Props> = ({ user }) => {
                             <div className="flex flex-col px-6 py-6 gap-5">
                                 <a href="#how-it-works" className="font-bold text-slate-700" onClick={() => setMenuOpen(false)}>How It Works</a>
                                 <a href="#features" className="font-bold text-slate-700" onClick={() => setMenuOpen(false)}>Features</a>
-                                <a href="#testimonials" className="font-bold text-slate-700" onClick={() => setMenuOpen(false)}>Testimonials</a>
+
                                 <div className="flex flex-col gap-3 pt-4 border-t border-slate-100">
                                     {user ? (
                                         <Link to={dashboardPath!} className="text-center bg-orange-500 text-white py-3 rounded-2xl font-bold" onClick={() => setMenuOpen(false)}>Go to Dashboard</Link>
@@ -220,7 +216,7 @@ const LandingPage: React.FC<Props> = ({ user }) => {
                                 { icon: <Lock size={16} />, label: 'End-to-End Secure' },
                                 { icon: <Bell size={16} />, label: 'Real-Time Alerts' },
                                 { icon: <BarChart3 size={16} />, label: 'Transparent Analytics' },
-                                { icon: <Star size={16} />, label: '4.9★ Average Rating' },
+                                { icon: <Star size={16} />, label: 'Citizen-First Design' },
                             ].map((b, i) => (
                                 <div key={i} className="flex items-center gap-2 text-slate-500 font-bold text-xs uppercase tracking-widest bg-white/60 backdrop-blur-sm px-4 py-2.5 rounded-full border border-slate-200 shadow-sm">
                                     <span className="text-orange-500">{b.icon}</span> {b.label}
@@ -358,49 +354,7 @@ const LandingPage: React.FC<Props> = ({ user }) => {
                 </div>
             </section>
 
-            {/* === TESTIMONIALS === */}
-            <section id="testimonials" className="py-32 bg-[#f8fafc] relative overflow-hidden">
-                <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-gradient-to-br from-orange-300/20 to-amber-200/10 blur-3xl pointer-events-none" />
-                <div className="max-w-7xl mx-auto px-5 sm:px-8 relative z-10">
-                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center max-w-3xl mx-auto mb-20">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 text-orange-600 rounded-full text-[11px] font-black uppercase tracking-widest border border-orange-100 mb-6">
-                            <Star size={14} /> Citizens Love It
-                        </div>
-                        <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-5">Real Stories, <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-green-500">Real Impact</span></h2>
-                        <p className="text-slate-500 text-lg font-medium">Thousands of citizens across the MMR have experienced a faster, fairer government.</p>
-                    </motion.div>
 
-                    <div className="grid md:grid-cols-3 gap-8">
-                        {testimonials.map((t, i) => (
-                            <motion.div
-                                key={i}
-                                initial={{ opacity: 0, y: 30 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ duration: 0.6, delay: i * 0.15 }}
-                                whileHover={{ y: -8, transition: { duration: 0.2 } }}
-                                className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/60 flex flex-col gap-6"
-                            >
-                                <div className="flex gap-1">
-                                    {Array(t.rating).fill(0).map((_, j) => (
-                                        <Star key={j} size={18} className="text-orange-400 fill-orange-400" />
-                                    ))}
-                                </div>
-                                <p className="text-slate-700 font-medium text-[15px] leading-relaxed italic">"{t.quote}"</p>
-                                <div className="flex items-center gap-4 border-t border-slate-100 pt-5">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-white font-black shadow-md shadow-orange-500/20">
-                                        {t.avatar}
-                                    </div>
-                                    <div>
-                                        <p className="font-black text-slate-900 text-[15px]">{t.name}</p>
-                                        <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">{t.role}</p>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-            </section>
 
             {/* === CTA SECTION === */}
             <section className="py-32 bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 relative overflow-hidden">
@@ -412,7 +366,7 @@ const LandingPage: React.FC<Props> = ({ user }) => {
                             <Zap size={14} className="text-yellow-300" /> Free for All Citizens
                         </div>
                         <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-tight mb-6">Make Your City<br />Better, Starting Now.</h2>
-                        <p className="text-orange-100 text-lg font-medium mb-10 max-w-xl mx-auto leading-relaxed">Join 50,000+ citizens who have made MMR a cleaner, safer, smarter place to live. It's free, it's official, it's powerful.</p>
+                        <p className="text-orange-100 text-lg font-medium mb-10 max-w-xl mx-auto leading-relaxed">Join citizens across MMR who are making their city a cleaner, safer, smarter place to live. It's free, it's official, it's powerful.</p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             <Link to={user ? dashboardPath! : '/register'}>
                                 <motion.button whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.97 }}
