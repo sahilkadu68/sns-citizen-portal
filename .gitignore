@@ -40,3 +40,6 @@ output.txt
 # Environment and Secrets
 .env
 .env.*
+application-local.properties
+src/main/resources/application-local.properties
+DEVELOPER_HELP.md

@@ -5,15 +5,20 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class EmailService {
 
-    @Autowired
+    private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
+
+    @Autowired(required = false)
     private JavaMailSender mailSender;
 
     // @Async
     public void sendRegistrationEmail(String toEmail, String fullName) {
+        if (mailSender == null) { logger.warn("Mail not configured, skipping registration email to {}", toEmail); return; }
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom("smartnagrikseva@gmail.com");
         message.setTo(toEmail);
@@ -30,6 +35,7 @@ public class EmailService {
 
     // @Async
     public void sendStatusUpdateEmail(String toEmail, String complaintNumber, String status, String title) {
+        if (mailSender == null) { logger.warn("Mail not configured, skipping status update email to {}", toEmail); return; }
         SimpleMailMessage message = new SimpleMailMessage();
         // message.setFrom("smartnagrikseva@gmail.com");
         message.setTo(toEmail);
@@ -47,6 +53,7 @@ public class EmailService {
 
     // @Async
     public void sendOTPEmail(String toEmail, String otpCode) {
+        if (mailSender == null) { logger.warn("Mail not configured, skipping OTP email to {}", toEmail); return; }
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom("smartnagrikseva@gmail.com");
         message.setTo(toEmail);
