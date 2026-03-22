@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Complaint, ComplaintStatus } from '../../types';
-import { ChevronLeft, MapPin, Calendar, User as UserIcon, AlertCircle, CheckCircle, Upload, Loader2, Clock, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, MapPin, Calendar, User as UserIcon, AlertCircle, CheckCircle, Upload, Loader2, Clock, AlertTriangle, Link2, Search } from 'lucide-react';
 import api from '../../src/api';
 import { motion } from 'framer-motion';
 
@@ -14,6 +14,10 @@ const ComplaintDetails: React.FC = () => {
     const [status, setStatus] = useState<ComplaintStatus | ''>('');
     const [proof, setProof] = useState<File | null>(null);
     const [resolutionNotes, setResolutionNotes] = useState('');
+    const [linkedDuplicates, setLinkedDuplicates] = useState<any[]>([]);
+    const [similarComplaints, setSimilarComplaints] = useState<any[]>([]);
+    const [scanningDuplicates, setScanningDuplicates] = useState(false);
+    const [showSimilarPanel, setShowSimilarPanel] = useState(false);
 
     useEffect(() => {
         const fetchComplaint = async () => {
@@ -28,6 +32,17 @@ const ComplaintDetails: React.FC = () => {
             }
         };
         fetchComplaint();
+
+        // Fetch linked duplicates
+        const fetchDuplicates = async () => {
+            try {
+                const res = await api.get(`/complaints/${id}/duplicates`);
+                setLinkedDuplicates(res.data || []);
+            } catch (err) {
+                // Not critical, silently ignore
+            }
+        };
+        fetchDuplicates();
     }, [id]);
 
     const handleStatusUpdate = async () => {
@@ -93,7 +108,18 @@ const ComplaintDetails: React.FC = () => {
                             <span className="inline-block px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 mb-4 border border-blue-100 shadow-sm">
                                 {complaint.category?.name || 'General Grievance'}
                             </span>
-                            <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-4 tracking-tight leading-tight">{complaint.title}</h1>
+                            <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-4 tracking-tight leading-tight flex items-center gap-3">
+                                {complaint.title}
+                                {complaint.parentComplaintId ? (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 border border-indigo-200 shadow-sm">
+                                        <Link2 size={12} /> Linked to Cluster
+                                    </span>
+                                ) : (complaint.duplicateCount ?? 0) > 0 && (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest bg-amber-50 text-amber-600 border border-amber-200 shadow-sm">
+                                        <Link2 size={12} /> {complaint.duplicateCount} Duplicates
+                                    </span>
+                                )}
+                            </h1>
                             <p className="text-slate-500 font-bold flex flex-wrap items-center gap-3">
                                 <span className="bg-white border border-slate-100 shadow-sm text-blue-600 px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-widest">{complaint.complaintNumber}</span>
                                 <span className="flex items-center bg-white border border-slate-100 shadow-sm px-3 py-1.5 rounded-lg text-xs"><Clock size={14} className="mr-2 text-slate-400" /> {new Date(complaint.submittedAt).toLocaleString()}</span>
@@ -160,6 +186,34 @@ const ComplaintDetails: React.FC = () => {
                                 <img src={complaint.imageUrl} alt="Proof" className="rounded-[2rem] shadow-lg max-h-72 w-full object-cover border-4 border-slate-50 hover:scale-[1.02] transition-transform duration-500" />
                             </div>
                         )}
+
+                        {/* Duplicate Cluster Section */}
+                        {linkedDuplicates.length > 0 && (
+                            <div className="mt-4">
+                                <h3 className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                    <Link2 size={14} /> Duplicate Cluster Reports ({linkedDuplicates.length})
+                                </h3>
+                                <div className="space-y-3">
+                                    {linkedDuplicates.map((dup: any) => (
+                                        <div key={dup.complaintId} className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100 flex justify-between items-center">
+                                            <div>
+                                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">{dup.complaintNumber}</p>
+                                                <p className="text-sm font-bold text-slate-800 mt-0.5">{dup.title}</p>
+                                                <p className="text-xs text-slate-500 mt-0.5">{dup.citizenName} &middot; {new Date(dup.submittedAt).toLocaleDateString()}</p>
+                                            </div>
+                                            <span className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border
+                                                ${dup.status === 'RESOLVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+                                                  dup.status === 'PENDING' ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                                                  'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                                                {dup.status}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+
                     </div>
 
                     <div className="h-full">

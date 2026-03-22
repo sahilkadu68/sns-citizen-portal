@@ -43,6 +43,12 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
     List<Complaint> findByCategoryAndStatusAndSubmittedAtAfter(
         com.sns.models.Category category, Complaint.Status status, java.time.LocalDateTime after);
 
+    // F9: Broad scan - find all complaints in a category
+    List<Complaint> findByCategory(com.sns.models.Category category);
+
+    // F9: Global Batch Scan optimization
+    List<Complaint> findByCategoryAndStatusInAndParentComplaintIdIsNull(com.sns.models.Category category, List<Complaint.Status> statuses);
+
     // F9: Find all complaints linked as duplicates of a parent
     List<Complaint> findByParentComplaintId(Long parentComplaintId);
 }

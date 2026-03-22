@@ -304,7 +304,9 @@ const LodgeComplaint: React.FC<{ user: User }> = ({ user }) => {
       const res = await api.post('/complaints/check-duplicates', {
         category: formData.category,
         latitude: position[0],
-        longitude: position[1]
+        longitude: position[1],
+        title: formData.title,
+        description: formData.description
       });
 
       if (res.data && res.data.length > 0) {
@@ -356,15 +358,18 @@ const LodgeComplaint: React.FC<{ user: User }> = ({ user }) => {
             <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mb-6 border border-amber-200">
               <Crosshair size={32} />
             </div>
-            <h2 className="text-2xl font-black text-slate-900 mb-2">Similar Issues Nearby</h2>
-            <p className="text-slate-500 mb-6">We found {potentialDuplicates.length} pending report(s) in the same category within 500 meters of your selected location. Linking your report prioritizes the issue and tracks it together.</p>
+            <h2 className="text-2xl font-black text-slate-900 mb-2">Is This the Same Problem?</h2>
+            <p className="text-slate-500 mb-6">We found {potentialDuplicates.length} similar report(s) near your location. If your issue matches one below, linking it helps prioritize the problem. If it's a different issue, submit as a new report.</p>
             
             <div className="space-y-4 mb-8">
               {potentialDuplicates.map(dup => (
                 <div key={dup.complaintId} className="p-5 border-2 border-slate-100 rounded-2xl hover:border-blue-200 transition-colors bg-slate-50 hover:bg-white text-left group">
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{dup.complaintNumber}</span>
-                    <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">{dup.distanceKm * 1000}m away</span>
+                    <div className="flex gap-2">
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">{dup.similarityPercent}% match</span>
+                      <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">{dup.distanceMeters}m away</span>
+                    </div>
                   </div>
                   <h3 className="font-bold text-slate-800 mb-1 leading-snug">{dup.title}</h3>
                   <p className="text-xs text-slate-500 mb-4 line-clamp-2">{dup.description}</p>
@@ -373,7 +378,7 @@ const LodgeComplaint: React.FC<{ user: User }> = ({ user }) => {
                     disabled={loading}
                     className="w-full py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl text-sm group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-200 transition-all flex justify-center items-center"
                   >
-                     <CheckCircle2 size={16} className="mr-2" /> Yes, Link to This Issue
+                     <CheckCircle2 size={16} className="mr-2" /> Yes, This Is the Same Issue
                   </button>
                 </div>
               ))}
@@ -385,7 +390,7 @@ const LodgeComplaint: React.FC<{ user: User }> = ({ user }) => {
                 disabled={loading}
                 className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-slate-800 transition-colors"
               >
-                No, Submit as New Report
+                No, It's a Different Issue — Submit New
               </button>
               <button 
                 onClick={() => setShowDuplicateModal(false)}

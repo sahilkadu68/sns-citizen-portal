@@ -19,6 +19,7 @@ import Analytics from './components/Admin/Analytics';
 import DepartmentManagement from './components/Admin/DepartmentManagement';
 import ManageOfficers from './components/Admin/ManageOfficers';
 import LandingPage from './components/LandingPage';
+import { I18nProvider } from './src/i18n';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -68,7 +69,8 @@ const App: React.FC = () => {
   const isLandingPage = location.pathname === '/';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <I18nProvider>
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex flex-col transition-colors">
       {!isAuthPage && !isLandingPage && user && <Navigation user={user} onLogout={handleLogout} />}
 
       <main className={`flex-grow ${(!isAuthPage && !isLandingPage) ? 'container mx-auto px-4 py-8' : ''}`}>
@@ -102,11 +104,12 @@ const App: React.FC = () => {
       </main>
 
       {!isAuthPage && (
-        <footer className="bg-white border-t py-6 text-center text-sm text-gray-500">
+        <footer className="bg-white dark:bg-slate-900 border-t dark:border-slate-800 py-6 text-center text-sm text-gray-500 dark:text-slate-400 transition-colors">
           <p>&copy; 2025 Smart Nagrik Seva (SNS). All rights reserved.</p>
         </footer>
       )}
     </div>
+    </I18nProvider>
   );
 };
 

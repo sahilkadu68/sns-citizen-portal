@@ -76,16 +76,16 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
 
   return (
     <motion.div initial="hidden" animate="visible" variants={containerVars} className="space-y-8 font-sans max-w-7xl mx-auto">
-      <motion.div variants={itemVars} className="flex flex-col md:flex-row md:items-end justify-between gap-6 bg-white p-8 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-50 to-transparent rounded-bl-full opacity-50 pointer-events-none"></div>
+      <motion.div variants={itemVars} className="flex flex-col md:flex-row md:items-end justify-between gap-6 bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-50 dark:from-blue-900/20 to-transparent rounded-bl-full opacity-50 pointer-events-none"></div>
         <div className="relative z-10">
-          <span className="inline-block px-3 py-1 mb-3 rounded-full bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest border border-blue-100">
+          <span className="inline-block px-3 py-1 mb-3 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest border border-blue-100 dark:border-blue-500/20">
             {user.role === 'ROLE_ADMIN' ? 'System Administrator' : 'Department Official'}
           </span>
-          <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
             Welcome back, {user.role === 'ROLE_ADMIN' ? 'Admin' : user.fullName}
           </h1>
-          <p className="text-slate-500 mt-2 font-medium">Monitor real-time civic issues and performance metrics.</p>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Monitor real-time civic issues and performance metrics.</p>
         </div>
         <div className="relative z-10">
           <motion.button
@@ -108,28 +108,28 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <motion.div variants={itemVars} className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/40 border border-slate-100 overflow-hidden relative">
-            <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between bg-white/50 backdrop-blur-sm z-10 relative">
-              <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-slate-200/40 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 overflow-hidden relative">
+            <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm z-10 relative">
+              <h3 className="font-black text-slate-900 dark:text-white text-lg flex items-center gap-2">
                 <div className="w-2 h-6 bg-blue-500 rounded-full"></div>
                 Recently Lodged Grievances
               </h3>
-              <button onClick={() => navigate('/admin/complaints')} className="text-sm text-blue-600 font-bold hover:text-blue-700 transition-colors">View All</button>
+              <button onClick={() => navigate('/admin/complaints')} className="text-sm text-blue-600 dark:text-blue-400 font-bold hover:text-blue-700 dark:hover:text-blue-300 transition-colors">View All</button>
             </div>
-            <div className="divide-y divide-slate-50">
+            <div className="divide-y divide-slate-50 dark:divide-slate-800">
               {recent.length === 0 ? <p className="p-10 text-center text-slate-400 font-medium">No complaints logged yet.</p> : recent.map((c, i) => (
                 <motion.div
                   initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 + (i * 0.1) }}
                   key={c.complaintId} onClick={() => navigate('/admin/complaints')}
-                  className="px-8 py-5 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer group"
+                  className="px-8 py-5 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group"
                 >
                   <div className="flex items-center space-x-4 mb-3 sm:mb-0">
                     <div className="w-12 h-12 shrink-0 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 font-black shadow-inner border border-blue-100 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                       #S
                     </div>
                     <div>
-                      <h4 className="font-black text-slate-800 text-sm tracking-tight">{c.complaintNumber}</h4>
-                      <p className="text-xs font-semibold text-slate-500 mt-0.5">{c.categoryName || 'General'} <span className="text-slate-300 mx-1">•</span> {new Date(c.submittedAt).toLocaleDateString()}</p>
+                      <h4 className="font-black text-slate-800 dark:text-slate-100 text-sm tracking-tight">{c.complaintNumber}</h4>
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">{c.categoryName || 'General'} <span className="text-slate-300 dark:text-slate-600 mx-1">•</span> {new Date(c.submittedAt).toLocaleDateString()}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between sm:justify-end sm:space-x-4">
@@ -143,8 +143,8 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
         </motion.div>
 
         <motion.div variants={itemVars} className="space-y-6">
-          <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/40 border border-slate-100 p-8">
-            <h3 className="font-black text-slate-900 mb-6 flex items-center text-lg tracking-tight">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-slate-200/40 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 p-8">
+            <h3 className="font-black text-slate-900 dark:text-white mb-6 flex items-center text-lg tracking-tight">
               <PieChart size={20} className="mr-2 text-indigo-500" />
               Zone Complaints
             </h3>
@@ -156,20 +156,20 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
           </div>
 
           {user.role === 'ROLE_ADMIN' && (
-            <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/40 border border-slate-100 p-8 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
-              <h3 className="font-black text-slate-900 mb-6 flex items-center text-lg tracking-tight relative z-10">
-                <ActivitySquare size={20} className="mr-2 text-slate-500" />
+            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-slate-200/40 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 p-8 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 dark:bg-slate-800 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+              <h3 className="font-black text-slate-900 dark:text-white mb-6 flex items-center text-lg tracking-tight relative z-10">
+                <ActivitySquare size={20} className="mr-2 text-slate-500 dark:text-slate-400" />
                 System Audit Log
               </h3>
               <div className="space-y-4 relative z-10">
                 {auditLogs.length === 0 ? <p className="text-slate-400 text-sm font-medium">No activity recorded</p> : auditLogs.map((log) => (
-                  <div key={log.id} className="pb-3 border-b border-slate-50 last:border-0 last:pb-0">
+                  <div key={log.id} className="pb-3 border-b border-slate-50 dark:border-slate-800 last:border-0 last:pb-0">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center justify-between mb-1">
                       <span>{log.action}</span>
                       <span>{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </p>
-                    <p className="text-sm font-bold text-slate-700 tracking-tight leading-snug">
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 tracking-tight leading-snug">
                       <span className="text-blue-600 font-mono text-[11px] mr-1">{log.complaintNumber}</span>
                       {log.oldValue && log.newValue ? `changed from ${log.oldValue} to ${log.newValue}` : log.details || 'Action recorded'}
                     </p>
@@ -187,10 +187,10 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
 
 const StatusSummary: React.FC<{ title: string; count: number; icon: React.ReactNode; type: 'blue' | 'indigo' | 'red' | 'amber'; delay: number }> = ({ title, count, icon, type, delay }) => {
   const styles: any = {
-    blue: { bg: 'from-blue-50 to-white', text: 'text-blue-600', border: 'border-blue-100', iconBg: 'bg-blue-100', iconColor: 'text-blue-600' },
-    indigo: { bg: 'from-indigo-50 to-white', text: 'text-indigo-600', border: 'border-indigo-100', iconBg: 'bg-indigo-100', iconColor: 'text-indigo-600' },
-    red: { bg: 'from-red-50 to-white', text: 'text-red-600', border: 'border-red-100', iconBg: 'bg-red-100', iconColor: 'text-red-600' },
-    amber: { bg: 'from-amber-50 to-white', text: 'text-amber-600', border: 'border-amber-100', iconBg: 'bg-amber-100', iconColor: 'text-amber-600' }
+    blue: { bg: 'from-blue-50 to-white dark:from-blue-500/10 dark:to-slate-900', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-100 dark:border-blue-500/20', iconBg: 'bg-blue-100 dark:bg-blue-500/20', iconColor: 'text-blue-600 dark:text-blue-400' },
+    indigo: { bg: 'from-indigo-50 to-white dark:from-indigo-500/10 dark:to-slate-900', text: 'text-indigo-600 dark:text-indigo-400', border: 'border-indigo-100 dark:border-indigo-500/20', iconBg: 'bg-indigo-100 dark:bg-indigo-500/20', iconColor: 'text-indigo-600 dark:text-indigo-400' },
+    red: { bg: 'from-red-50 to-white dark:from-red-500/10 dark:to-slate-900', text: 'text-red-600 dark:text-red-400', border: 'border-red-100 dark:border-red-500/20', iconBg: 'bg-red-100 dark:bg-red-500/20', iconColor: 'text-red-600 dark:text-red-400' },
+    amber: { bg: 'from-amber-50 to-white dark:from-amber-500/10 dark:to-slate-900', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-100 dark:border-amber-500/20', iconBg: 'bg-amber-100 dark:bg-amber-500/20', iconColor: 'text-amber-600 dark:text-amber-400' }
   };
   const s = styles[type];
 
@@ -202,7 +202,7 @@ const StatusSummary: React.FC<{ title: string; count: number; icon: React.ReactN
     >
       <div>
         <p className={`text-[10px] font-black uppercase tracking-widest ${s.text} opacity-80 mb-1`}>{title}</p>
-        <h4 className="text-3xl font-black text-slate-800 tracking-tighter">{count}</h4>
+        <h4 className="text-3xl font-black text-slate-800 dark:text-white tracking-tighter">{count}</h4>
       </div>
       <div className={`p-3 rounded-2xl shadow-inner ${s.iconBg} ${s.iconColor}`}>
         {icon}
@@ -214,10 +214,10 @@ const StatusSummary: React.FC<{ title: string; count: number; icon: React.ReactN
 const ZoneProgress: React.FC<{ name: string; percent: number; delay: number }> = ({ name, percent, delay }) => (
   <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay }} className="space-y-2">
     <div className="flex justify-between items-end">
-      <span className="font-bold text-slate-700 text-sm tracking-tight">{name}</span>
-      <span className="font-black text-slate-900 text-sm">{percent}%</span>
+      <span className="font-bold text-slate-700 dark:text-slate-300 text-sm tracking-tight">{name}</span>
+      <span className="font-black text-slate-900 dark:text-white text-sm">{percent}%</span>
     </div>
-    <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden shadow-inner">
+    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden shadow-inner">
       <motion.div
         initial={{ width: 0 }} animate={{ width: `${percent}%` }} transition={{ duration: 1, delay, ease: "easeOut" }}
         className="bg-gradient-to-r from-indigo-500 to-blue-500 h-full rounded-full"

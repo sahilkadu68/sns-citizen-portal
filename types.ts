@@ -44,6 +44,7 @@ export interface Complaint {
   status: ComplaintStatus;
   priority: ComplaintPriority;
   resolutionProof?: string;
+  resolutionNotes?: string;
   submittedAt: string;
   assignedAt?: string;
   resolvedAt?: string;
@@ -57,4 +58,8 @@ export interface Complaint {
   assignedTo?: User;
   imageUrl?: string;
   address?: string;
+  citizenRating?: number;
+  citizenFeedback?: string;
+  duplicateCount?: number;
+  parentComplaintId?: number;
 }

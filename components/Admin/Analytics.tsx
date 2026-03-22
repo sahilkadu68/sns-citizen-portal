@@ -1,20 +1,30 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, AlertCircle, CheckCircle, Clock, BarChart3, X, MapPin, Calendar, Tag, User, ChevronRight, Download, Map as MapIcon } from 'lucide-react';
+import { TrendingUp, AlertCircle, CheckCircle, Clock, BarChart3, X, MapPin, Calendar, Tag, User, ChevronRight } from 'lucide-react';
 import api from '../../src/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import 'leaflet.heat';
+import { useI18n } from '../../src/i18n';
 
-const initLeafletIcon = () => {
-  const DefaultIcon = L.icon({
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
-  });
-  L.Marker.prototype.options.icon = DefaultIcon;
+// HeatmapLayer component using leaflet.heat
+const HeatmapLayer: React.FC<{ points: [number, number, number][] }> = ({ points }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (!points.length) return;
+    // @ts-ignore — leaflet.heat extends L globally
+    const heat = (L as any).heatLayer(points, {
+      radius: 40,
+      blur: 25,
+      maxZoom: 15,
+      max: 1.0,
+      gradient: { 0.1: 'blue', 0.3: 'cyan', 0.5: 'lime', 0.7: 'yellow', 1.0: 'red' }
+    }).addTo(map);
+    return () => { map.removeLayer(heat); };
+  }, [map, points]);
+  return null;
 };
 
 type DrillKey = 'total' | 'overdue' | 'resolved' | 'rate' | null;
@@ -36,8 +46,10 @@ const PRIORITY_STYLES: Record<string, string> = {
 const Analytics: React.FC = () => {
   const navigate = useNavigate();
   const drillRef = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
 
   const [trendData, setTrendData] = useState<any[]>([]);
+  const [trendFilter, setTrendFilter] = useState<'week' | 'month' | 'year' | 'all'>('month');
   const [categoryData, setCategoryData] = useState<any[]>([]);
   const [zoneData, setZoneData] = useState<any[]>([]);
   const [summary, setSummary] = useState({ total: 0, resolved: 0, overdue: 0 });
@@ -58,32 +70,17 @@ const Analytics: React.FC = () => {
           api.get('/analytics/summary'),
           api.get('/complaints/all'),
         ]);
-        setTrendData(trendRes.data.reverse());
+        setTrendData(trendRes.data);
         setCategoryData(catRes.data);
         setZoneData(zoneRes.data);
         setSummary(sumRes.data);
         setAllComplaints(complaintsRes.data);
       } catch (e) { console.error("Analytics fetch error", e); }
     };
-    initLeafletIcon();
     fetchData();
   }, []);
 
-  const handleExport = async () => {
-    try {
-      const res = await api.get('/reports/export?format=csv', { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'sns_complaints_export.csv');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (e) {
-      console.error("Export failed", e);
-      alert("Failed to export report.");
-    }
-  };
+
 
   const completionRate = summary.total > 0 ? Math.round((summary.resolved / summary.total) * 100) : 0;
 
@@ -118,11 +115,22 @@ const Analytics: React.FC = () => {
 
   const drillComplaints = getDrillComplaints(activeDrill);
 
+  const filteredTrendData = useMemo(() => {
+    if (trendFilter === 'all') return trendData;
+    const now = new Date();
+    const cutoff = new Date();
+    if (trendFilter === 'week') cutoff.setDate(now.getDate() - 7);
+    if (trendFilter === 'month') cutoff.setMonth(now.getMonth() - 1);
+    if (trendFilter === 'year') cutoff.setFullYear(now.getFullYear() - 1);
+    
+    return trendData.filter(d => new Date(d.date) >= cutoff);
+  }, [trendData, trendFilter]);
+
   const stats = [
-    { key: 'total' as DrillKey, title: 'Total Complaints', value: summary.total, label: 'Click to View All', icon: <TrendingUp size={22} />, gradient: 'from-blue-600 to-cyan-500', shadow: 'shadow-blue-500/20', ring: 'ring-blue-300' },
-    { key: 'overdue' as DrillKey, title: 'Overdue SLA', value: summary.overdue, label: 'Click to View', icon: <AlertCircle size={22} />, gradient: 'from-red-500 to-orange-500', shadow: 'shadow-red-500/20', ring: 'ring-red-300' },
-    { key: 'resolved' as DrillKey, title: 'Total Resolved', value: summary.resolved, label: 'Click to View', icon: <CheckCircle size={22} />, gradient: 'from-green-500 to-emerald-500', shadow: 'shadow-green-500/20', ring: 'ring-green-300' },
-    { key: 'rate' as DrillKey, title: 'Completion Rate', value: `${completionRate}%`, label: 'Resolution Rate', icon: <Clock size={22} />, gradient: 'from-violet-600 to-indigo-600', shadow: 'shadow-violet-500/20', ring: 'ring-violet-300' },
+    { key: 'total' as DrillKey, title: t('analytics.totalComplaints'), value: summary.total, label: 'Click to View All', icon: <TrendingUp size={22} />, gradient: 'from-blue-600 to-cyan-500', shadow: 'shadow-blue-500/20', ring: 'ring-blue-300' },
+    { key: 'overdue' as DrillKey, title: t('analytics.overdueSla'), value: summary.overdue, label: 'Click to View', icon: <AlertCircle size={22} />, gradient: 'from-red-500 to-orange-500', shadow: 'shadow-red-500/20', ring: 'ring-red-300' },
+    { key: 'resolved' as DrillKey, title: t('analytics.totalResolved'), value: summary.resolved, label: 'Click to View', icon: <CheckCircle size={22} />, gradient: 'from-green-500 to-emerald-500', shadow: 'shadow-green-500/20', ring: 'ring-green-300' },
+    { key: 'rate' as DrillKey, title: t('analytics.completionRate'), value: `${completionRate}%`, label: 'Resolution Rate', icon: <Clock size={22} />, gradient: 'from-violet-600 to-indigo-600', shadow: 'shadow-violet-500/20', ring: 'ring-violet-300' },
   ];
 
   return (
@@ -132,20 +140,12 @@ const Analytics: React.FC = () => {
         className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 rounded-[2.5rem] p-8 sm:p-10 relative overflow-hidden shadow-2xl">
         <div className="absolute top-0 right-0 w-96 h-96 rounded-full border-[60px] border-white/5 -mr-20 -mt-20 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full border-[40px] border-indigo-400/10 -ml-10 -mb-10 pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div>
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 text-blue-300 text-[10px] font-black uppercase tracking-widest rounded-full border border-white/10 backdrop-blur-sm mb-4">
-              <BarChart3 size={12} /> Performance Intelligence
-            </span>
-            <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2">Grievance <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">Analytics</span></h1>
-            <p className="text-slate-400 font-medium text-sm">Live data analytics and SLA compliance metrics. <span className="text-blue-300 font-bold">Click any card below to view those complaints.</span></p>
-          </div>
-          <button 
-            onClick={handleExport}
-            className="px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center border border-white/20 transition-all shadow-lg active:scale-95 shrink-0"
-          >
-            <Download className="mr-2" size={16} /> Export CSV Data
-          </button>
+        <div className="relative z-10">
+          <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 text-blue-300 text-[10px] font-black uppercase tracking-widest rounded-full border border-white/10 backdrop-blur-sm mb-4">
+            <BarChart3 size={12} /> {t('analytics.badge')}
+          </span>
+          <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2">{t('analytics.title')} <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">{t('analytics.title2')}</span></h1>
+          <p className="text-slate-400 font-medium text-sm">{t('analytics.subtitle')} <span className="text-blue-300 font-bold">{t('analytics.clickHint')}</span></p>
         </div>
       </motion.div>
 
@@ -193,11 +193,11 @@ const Analytics: React.FC = () => {
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               className="overflow-hidden"
             >
-              <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-slate-200/60 border border-white">
+              <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-slate-200/60 dark:shadow-black/30 border border-white dark:border-slate-800">
                 {/* Drill Header */}
-                <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
+                <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                   <div>
-                    <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
+                    <h3 className="font-black text-slate-900 dark:text-white text-lg flex items-center gap-2">
                       <div className={`w-2 h-6 rounded-full ${activeDrill === 'overdue' ? 'bg-red-500' : activeDrill === 'resolved' ? 'bg-green-500' : 'bg-blue-500'}`} />
                       {getDrillTitle(activeDrill)}
                     </h3>
@@ -210,7 +210,7 @@ const Analytics: React.FC = () => {
                 </div>
 
                 {/* Complaint List */}
-                <div className="divide-y divide-slate-50 max-h-[480px] overflow-y-auto">
+                <div className="divide-y divide-slate-50 dark:divide-slate-800 max-h-[480px] overflow-y-auto">
                   {drillComplaints.length === 0 ? (
                     <div className="py-16 text-center text-slate-400 font-medium">
                       <CheckCircle size={40} className="mx-auto mb-3 text-slate-200" />
@@ -221,7 +221,7 @@ const Analytics: React.FC = () => {
                       key={c.complaintId}
                       initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
                       onClick={() => navigate(`/admin/complaint/${c.complaintId}`)}
-                      className="px-8 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/80 cursor-pointer group transition-colors"
+                      className="px-8 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 cursor-pointer group transition-colors"
                     >
                       <div className="flex items-start gap-4">
                         {/* Number Badge */}
@@ -270,13 +270,25 @@ const Analytics: React.FC = () => {
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-          className="bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-white p-8">
-          <h3 className="font-black text-slate-900 text-lg mb-6 flex items-center gap-2">
-            <div className="w-2 h-6 bg-blue-500 rounded-full" /> Daily Complaint Trends
-          </h3>
+          className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-slate-200/50 dark:shadow-black/20 border border-white dark:border-slate-800 p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-black text-slate-900 dark:text-white text-lg flex items-center gap-2">
+              <div className="w-2 h-6 bg-blue-500 rounded-full" /> Daily Complaint Trends
+            </h3>
+            <select
+              value={trendFilter}
+              onChange={(e) => setTrendFilter(e.target.value as any)}
+              className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="year">This Year</option>
+              <option value="all">All Time</option>
+            </select>
+          </div>
           <div className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData}>
+              <LineChart data={filteredTrendData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#94a3b8' }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#94a3b8' }} />
@@ -290,8 +302,8 @@ const Analytics: React.FC = () => {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-          className="bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-white p-8">
-          <h3 className="font-black text-slate-900 text-lg mb-6 flex items-center gap-2">
+          className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-slate-200/50 dark:shadow-black/20 border border-white dark:border-slate-800 p-8">
+          <h3 className="font-black text-slate-900 dark:text-white text-lg mb-6 flex items-center gap-2">
             <div className="w-2 h-6 bg-orange-500 rounded-full" /> Category Distribution
           </h3>
           <div className="h-[280px]">
@@ -310,36 +322,41 @@ const Analytics: React.FC = () => {
         </motion.div>
       </div>
 
-      {/* Charts Row 2 - Heatmap Map */}
+      {/* Charts Row 2 - Real Density Heatmap */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
         className="bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-white p-8">
         <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
           <div className="w-2 h-6 bg-rose-500 rounded-full" /> Geographic Incident Heatmap
         </h3>
-        <p className="text-slate-500 text-sm font-medium mt-1 mb-6 pl-4">Live tracking of all plotted complaints across the region.</p>
+        <p className="text-slate-500 text-sm font-medium mt-1 mb-6 pl-4">Complaint density across the region — red zones have the highest complaint concentration.</p>
         <div className="h-[450px] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-inner z-0 relative isolate">
           <MapContainer center={[19.0330, 73.0297]} zoom={9} style={{ height: '100%', width: '100%' }}>
-            <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" attribution='&copy; OpenStreetMap contributors' />
-            {allComplaints.filter(c => c.latitude && c.longitude).map(c => (
-              <Marker key={c.complaintId} position={[c.latitude, c.longitude]}>
-                <Popup>
-                  <div className="font-sans min-w-[200px]">
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border mb-2 inline-block ${c.status === 'RESOLVED' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                      {c.status}
-                    </span>
-                    <p className="font-bold text-slate-800 text-sm leading-snug mb-1">{c.title}</p>
-                    <p className="text-xs text-slate-500 mb-2">{c.categoryName}</p>
-                    <button 
-                      onClick={() => navigate(`/admin/complaint/${c.complaintId}`)}
-                      className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-lg text-xs transition-colors"
-                    >
-                      View Issue
-                    </button>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+            <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution='&copy; OpenStreetMap contributors' />
+            <HeatmapLayer
+              points={allComplaints
+                .filter(c => c.latitude && c.longitude)
+                .map(c => [c.latitude, c.longitude, 0.7] as [number, number, number])}
+            />
           </MapContainer>
+        </div>
+        {/* Legend */}
+        <div className="flex items-center gap-3 mt-4 pl-4">
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Density:</span>
+          <div className="flex items-center gap-1">
+            <div className="w-4 h-3 rounded-sm bg-blue-600" /><span className="text-[10px] text-slate-400">Low</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-4 h-3 rounded-sm bg-cyan-500" /><span className="text-[10px] text-slate-400">Med</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-4 h-3 rounded-sm bg-yellow-400" /><span className="text-[10px] text-slate-400">High</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-4 h-3 rounded-sm bg-orange-500" /><span className="text-[10px] text-slate-400">Very High</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-4 h-3 rounded-sm bg-red-500" /><span className="text-[10px] text-slate-400">Critical</span>
+          </div>
         </div>
       </motion.div>
 

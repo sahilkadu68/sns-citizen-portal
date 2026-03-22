@@ -4,6 +4,7 @@ import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { Shield, Users, Activity, ChevronRight, Clock, MapPin, CheckCircle, ArrowRight, Star, Zap, Bell, Lock, Menu, X, ShieldCheck, BarChart3, Building2 } from 'lucide-react';
 import { User } from '../types';
 import api from '../src/api';
+import { useI18n } from '../src/i18n';
 
 interface Props {
     user: User | null;
@@ -11,6 +12,7 @@ interface Props {
 
 const LandingPage: React.FC<Props> = ({ user }) => {
     const navigate = useNavigate();
+    const { t } = useI18n();
     const [menuOpen, setMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const [liveStats, setLiveStats] = useState<any>(null);
@@ -97,7 +99,7 @@ const LandingPage: React.FC<Props> = ({ user }) => {
                                 <ShieldCheck size={22} />
                             </div>
                             <span className="font-black text-[1.4rem] tracking-tighter text-slate-900">
-                                Smart<span className="text-orange-500">Nagrik</span><span className="text-green-600">Seva</span>
+                                {t('landing.hero.title1')}<span className="text-orange-500">{t('landing.hero.title2')}</span><span className="text-green-600">{t('landing.hero.title3')}</span>
                             </span>
                         </Link>
 

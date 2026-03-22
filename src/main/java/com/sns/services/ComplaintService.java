@@ -42,6 +42,9 @@ public class ComplaintService {
     @Autowired
     private com.sns.services.AuditService auditService;
 
+    @Autowired
+    private com.sns.repositories.RejectedDuplicateRepository rejectedDuplicateRepository;
+
     /* =========================================================
        🔹 MAIN METHOD CALLED BY CONTROLLER
        ========================================================= */
@@ -393,51 +396,312 @@ public class ComplaintService {
     }
 
     /* =========================================================
-       🔹 F9: DUPLICATE DETECTION
+       🔹 F9: SMART DUPLICATE DETECTION
        ========================================================= */
-    public List<Map<String, Object>> findPotentialDuplicates(String categoryName, Double lat, Double lng) {
-        com.sns.models.Category category = categoryRepository.findByName(categoryName).orElse(null);
-        if (category == null) return List.of();
 
-        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
-        List<Complaint> candidates = complaintRepository.findByCategoryAndStatusAndSubmittedAtAfter(
-            category, Complaint.Status.PENDING, thirtyDaysAgo);
+    /**
+     * Category-specific search radius (in km).
+     * Increased minimums to account for manual map pin placement imprecision.
+     */
+    private double getRadiusForCategory(String categoryName) {
+        if (categoryName == null) return 0.1;
+        String lower = categoryName.toLowerCase();
+        if (lower.contains("road") || lower.contains("pothole") || lower.contains("footpath") || lower.contains("bridge"))
+            return 0.03;   // 30 meters
+        if (lower.contains("electric") || lower.contains("street light") || lower.contains("power"))
+            return 0.05;  // 50 meters
+        if (lower.contains("garbage") || lower.contains("sanitation") || lower.contains("waste") || lower.contains("sewage"))
+            return 0.05;   // 50 meters
+        if (lower.contains("traffic") || lower.contains("signal") || lower.contains("water") || lower.contains("drainage") || lower.contains("pipe"))
+            return 0.1;   // 100 meters
+        return 0.1; // 100m default for environment, noise, etc.
+    }
 
-        List<Map<String, Object>> duplicates = new java.util.ArrayList<>();
-        for (Complaint c : candidates) {
-            double dist = distance(lat, lng, c.getLatitude(), c.getLongitude());
-            if (dist <= 0.5) { // Within 500m
-                Map<String, Object> match = new java.util.HashMap<>();
-                match.put("complaintId", c.getComplaintId());
-                match.put("complaintNumber", c.getComplaintNumber());
-                match.put("title", c.getTitle());
-                match.put("description", c.getDescription());
-                match.put("address", c.getAddress());
-                match.put("status", c.getStatus().name());
-                match.put("submittedAt", c.getSubmittedAt());
-                match.put("distanceKm", Math.round(dist * 1000.0) / 1000.0);
-                match.put("duplicateCount", c.getDuplicateCount());
-                duplicates.add(match);
+    /**
+     * Jaccard keyword overlap between two texts.
+     * Returns a score between 0.0 and 1.0.
+     */
+    private double computeTextSimilarity(String text1, String text2) {
+        if (text1 == null || text2 == null) return 0.0;
+        java.util.Set<String> set1 = extractKeywords(text1);
+        java.util.Set<String> set2 = extractKeywords(text2);
+
+        // Fallback: if keyword extraction strips everything, use raw words (min 2 chars)
+        if (set1.isEmpty()) set1 = extractRawWords(text1);
+        if (set2.isEmpty()) set2 = extractRawWords(text2);
+        if (set1.isEmpty() || set2.isEmpty()) return 0.0;
+
+        java.util.Set<String> intersection = new java.util.HashSet<>(set1);
+        intersection.retainAll(set2);
+
+        java.util.Set<String> union = new java.util.HashSet<>(set1);
+        union.addAll(set2);
+
+        return (double) intersection.size() / union.size();
+    }
+
+    /**
+     * Extracts meaningful keywords from text (lowercased, stopwords removed, min 3 chars).
+     * Only removes true function words — NOT municipal-relevant nouns.
+     */
+    private java.util.Set<String> extractKeywords(String text) {
+        java.util.Set<String> stopWords = java.util.Set.of(
+            "the","a","an","is","are","was","were","in","on","at","to","for","of","and","or",
+            "it","this","that","my","your","near","from","with","has","have","been","not","but",
+            "very","also","there","please","here","some","can","about","need","sir","madam",
+            "its","they","their","all","any","just","our","will","get","got","lot","many"
+        );
+        String[] words = text.toLowerCase().replaceAll("[^a-z0-9\\s]", "").split("\\s+");
+        java.util.Set<String> keywords = new java.util.HashSet<>();
+        for (String w : words) {
+            if (w.length() >= 3 && !stopWords.contains(w)) {
+                keywords.add(w);
             }
         }
+        return keywords;
+    }
+
+    /** Fallback: raw words (min 2 chars, lowercased) when keyword extraction returns empty */
+    private java.util.Set<String> extractRawWords(String text) {
+        String[] words = text.toLowerCase().replaceAll("[^a-z0-9\\s]", "").split("\\s+");
+        java.util.Set<String> result = new java.util.HashSet<>();
+        for (String w : words) {
+            if (w.length() >= 2) result.add(w);
+        }
+        return result;
+    }
+
+    /**
+     * Finds potential duplicate complaints using:
+     * 1. Same category
+     * 2. Within category-specific distance
+     * 3. Title+description keyword overlap >= 25%
+     * 4. Submitted in last 30 days (PENDING) or 7 days (RESOLVED) [Unless historical=true]
+     */
+    public List<Map<String, Object>> findPotentialDuplicates(String categoryName, Double lat, Double lng, String title, String description, boolean historical) {
+        com.sns.models.Category category = categoryRepository.findByName(categoryName).orElse(null);
+        if (category == null) {
+            System.out.println("🔍 DUPLICATE CHECK: Category '" + categoryName + "' NOT FOUND in DB");
+            return List.of();
+        }
+
+        double radiusKm = getRadiusForCategory(categoryName);
+        if (historical) radiusKm *= 2; // Broaden search for admins
+
+        String newText = (title != null ? title : "") + " " + (description != null ? description : "");
+
+        List<Complaint> allCandidates;
+        if (historical) {
+            allCandidates = complaintRepository.findByCategory(category);
+            System.out.println("🔍 HISTORICAL SCAN: Category='" + categoryName + "', Radius=" + (radiusKm*1000) + "m, Total Candidates=" + allCandidates.size());
+        } else {
+            LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+            LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+            
+            List<Complaint> pendingCandidates = complaintRepository.findByCategoryAndStatusAndSubmittedAtAfter(
+                category, Complaint.Status.PENDING, thirtyDaysAgo);
+            List<Complaint> resolvedCandidates = complaintRepository.findByCategoryAndStatusAndSubmittedAtAfter(
+                category, Complaint.Status.RESOLVED, sevenDaysAgo);
+
+            allCandidates = new java.util.ArrayList<>(pendingCandidates);
+            allCandidates.addAll(resolvedCandidates);
+        }
+
+        List<Map<String, Object>> duplicates = new java.util.ArrayList<>();
+        for (Complaint c : allCandidates) {
+            double dist = distance(lat, lng, c.getLatitude(), c.getLongitude());
+            if (dist > radiusKm) continue;
+
+            String existingText = (c.getTitle() != null ? c.getTitle() : "") + " " + (c.getDescription() != null ? c.getDescription() : "");
+            double similarity = computeTextSimilarity(newText, existingText);
+
+            Map<String, Object> match = new java.util.HashMap<>();
+            match.put("complaintId", c.getComplaintId());
+            match.put("complaintNumber", c.getComplaintNumber());
+            match.put("title", c.getTitle());
+            match.put("description", c.getDescription());
+            match.put("address", c.getAddress());
+            match.put("status", c.getStatus().name());
+            match.put("submittedAt", c.getSubmittedAt());
+            match.put("distanceMeters", (int) Math.round(dist * 1000));
+            match.put("similarityPercent", (int) Math.round(similarity * 100));
+            match.put("duplicateCount", c.getDuplicateCount());
+            match.put("parentComplaintId", c.getParentComplaintId());
+            duplicates.add(match);
+        }
+
+        // Sort: highest similarity first
+        duplicates.sort((a, b) -> ((Integer) b.get("similarityPercent")).compareTo((Integer) a.get("similarityPercent")));
         return duplicates;
     }
 
-    public void linkAsDuplicate(Long parentComplaintId, Long childComplaintId) {
-        Complaint parent = complaintRepository.findById(parentComplaintId)
-            .orElseThrow(() -> new RuntimeException("Parent complaint not found"));
-        Complaint child = complaintRepository.findById(childComplaintId)
-            .orElseThrow(() -> new RuntimeException("Child complaint not found"));
+    // Backward-compatible overloads
+    public List<Map<String, Object>> findPotentialDuplicates(String categoryName, Double lat, Double lng, String title, String description) {
+        return findPotentialDuplicates(categoryName, lat, lng, title, description, false);
+    }
 
-        child.setParentComplaintId(parentComplaintId);
-        child.setStatus(parent.getStatus());
-        complaintRepository.save(child);
+    public List<Map<String, Object>> findPotentialDuplicates(String categoryName, Double lat, Double lng) {
+        return findPotentialDuplicates(categoryName, lat, lng, null, null, false);
+    }
 
-        parent.setDuplicateCount(parent.getDuplicateCount() + 1);
-        complaintRepository.save(parent);
+    /**
+     * F9: OPTIMIZED GLOBAL BATCH SCAN FOR ADMINS
+     * Scans all active unlinked complaints, grouping them by category, sorting by latitude,
+     * and strictly filtering by tight radius and >20% text similarity.
+     * Skips pairs that the admin has previously rejected.
+     */
+    public List<Map<String, Object>> scanAllPotentialDuplicates() {
+        List<Map<String, Object>> allClusters = new java.util.ArrayList<>();
+        List<com.sns.models.Category> categories = categoryRepository.findAll();
 
-        auditService.log("DUPLICATE_LINKED", child.getUser().getEmail(), parentComplaintId, parent.getComplaintNumber(),
-            null, child.getComplaintNumber(), "Complaint linked as duplicate");
+        List<Complaint.Status> activeStatuses = List.of(Complaint.Status.PENDING, Complaint.Status.RESOLVED);
+
+        for (com.sns.models.Category category : categories) {
+            // Find all complaints in this category that are active and NOT already linked as duplicates
+            List<Complaint> candidates = complaintRepository.findByCategoryAndStatusInAndParentComplaintIdIsNull(category, activeStatuses);
+            
+            if (candidates.size() < 2) continue;
+
+            // Sort by latitude for spatial optimization (Sweep-line-like)
+            candidates.sort(java.util.Comparator.comparingDouble(Complaint::getLatitude));
+            double radiusKm = getRadiusForCategory(category.getName());
+
+            java.util.Set<Long> alreadyGrouped = new java.util.HashSet<>();
+
+            for (int i = 0; i < candidates.size(); i++) {
+                Complaint anchor = candidates.get(i);
+                if (alreadyGrouped.contains(anchor.getComplaintId())) continue;
+
+                List<Complaint> potentialDuplicates = new java.util.ArrayList<>();
+                
+                // Only scan forward within the latitudinal radius bound
+                for (int j = i + 1; j < candidates.size(); j++) {
+                    Complaint target = candidates.get(j);
+                    
+                    if (alreadyGrouped.contains(target.getComplaintId())) continue;
+
+                    // If latitude difference exceeds radius, break inner loop early (spatial optimization)
+                    if (Math.abs(target.getLatitude() - anchor.getLatitude()) * 111.0 > radiusKm) {
+                        break; 
+                    }
+
+                    // Check exact distance
+                    double dist = distance(anchor.getLatitude(), anchor.getLongitude(), target.getLatitude(), target.getLongitude());
+                    if (dist > radiusKm) continue;
+
+                    // Check Rejected Table
+                    Long id1 = Math.min(anchor.getComplaintId(), target.getComplaintId());
+                    Long id2 = Math.max(anchor.getComplaintId(), target.getComplaintId());
+                    if (rejectedDuplicateRepository.existsByComplaintId1AndComplaintId2(id1, id2)) {
+                        continue;
+                    }
+
+                    // Check Strict Text Similarity
+                    String text1 = (anchor.getTitle() != null ? anchor.getTitle() : "") + " " + (anchor.getDescription() != null ? anchor.getDescription() : "");
+                    String text2 = (target.getTitle() != null ? target.getTitle() : "") + " " + (target.getDescription() != null ? target.getDescription() : "");
+                    double similarity = computeTextSimilarity(text1, text2);
+
+                    // Must be >= 20% similar OR identical location (<10m)
+                    if (similarity >= 0.20 || dist < 0.01) {
+                        potentialDuplicates.add(target);
+                        alreadyGrouped.add(target.getComplaintId());
+                    }
+                }
+
+                if (!potentialDuplicates.isEmpty()) {
+                    List<Map<String, Object>> clusterItems = new java.util.ArrayList<>();
+                    clusterItems.add(createSummaryMap(anchor));
+                    for (Complaint d : potentialDuplicates) {
+                        clusterItems.add(createSummaryMap(d));
+                    }
+                    
+                    Map<String, Object> cluster = new java.util.HashMap<>();
+                    cluster.put("anchor", createSummaryMap(anchor));
+                    cluster.put("duplicates", potentialDuplicates.stream().map(this::createSummaryMap).toList());
+                    cluster.put("category", category.getName());
+                    allClusters.add(cluster);
+                    
+                    alreadyGrouped.add(anchor.getComplaintId());
+                }
+            }
+        }
+        return allClusters;
+    }
+
+    private Map<String, Object> createSummaryMap(Complaint c) {
+        Map<String, Object> map = new java.util.HashMap<>();
+        map.put("complaintId", c.getComplaintId());
+        map.put("complaintNumber", c.getComplaintNumber());
+        map.put("title", c.getTitle());
+        map.put("description", c.getDescription());
+        map.put("address", c.getAddress());
+        map.put("status", c.getStatus().name());
+        map.put("submittedAt", c.getSubmittedAt());
+        return map;
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void rejectDuplicatePair(Long id1, Long id2) {
+         com.sns.models.RejectedDuplicate rejected = new com.sns.models.RejectedDuplicate(id1, id2);
+         if (!rejectedDuplicateRepository.existsByComplaintId1AndComplaintId2(rejected.getComplaintId1(), rejected.getComplaintId2())) {
+             rejectedDuplicateRepository.save(rejected);
+         }
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void linkAsDuplicate(Long anchorId, Long duplicateId) {
+        if (anchorId.equals(duplicateId)) return;
+
+        Complaint anchor = complaintRepository.findById(anchorId)
+            .orElseThrow(() -> new RuntimeException("Anchor report not found"));
+        Complaint duplicate = complaintRepository.findById(duplicateId)
+            .orElseThrow(() -> new RuntimeException("Duplicate report not found"));
+
+        // Always merge into the "Original" (Anchor) of the cluster
+        Long targetAnchorId = anchor.getParentComplaintId() != null ? anchor.getParentComplaintId() : anchorId;
+        Complaint targetAnchor = (targetAnchorId.equals(anchorId)) ? anchor : getComplaintById(targetAnchorId);
+
+        // If the report being linked already has its own duplicates, move them all to the ultimate anchor
+        List<Complaint> associated = complaintRepository.findByParentComplaintId(duplicateId);
+        for (Complaint comp : associated) {
+            comp.setParentComplaintId(targetAnchorId);
+            comp.setStatus(targetAnchor.getStatus());
+            complaintRepository.save(comp);
+        }
+
+        // Link the duplicate report itself
+        duplicate.setParentComplaintId(targetAnchorId);
+        duplicate.setDuplicateCount(0); // Children have a count of 0
+        duplicate.setStatus(targetAnchor.getStatus());
+        complaintRepository.save(duplicate);
+
+        // Update anchor's total count
+        long totalDuplicates = complaintRepository.findByParentComplaintId(targetAnchorId).size();
+        targetAnchor.setDuplicateCount((int) totalDuplicates);
+        complaintRepository.save(targetAnchor);
+
+        auditService.log("DUPLICATE_LINKED", "SYSTEM", targetAnchorId, targetAnchor.getComplaintNumber(),
+            null, duplicate.getComplaintNumber(), "Consolidated reports into cluster");
+    }
+
+    /**
+     * Returns all child complaints linked to a given parent (for admin panel).
+     */
+    public List<Map<String, Object>> getDuplicatesForComplaint(Long complaintId) {
+        List<Complaint> linked = complaintRepository.findByParentComplaintId(complaintId);
+        List<Map<String, Object>> result = new java.util.ArrayList<>();
+        for (Complaint c : linked) {
+            Map<String, Object> item = new java.util.HashMap<>();
+            item.put("complaintId", c.getComplaintId());
+            item.put("complaintNumber", c.getComplaintNumber());
+            item.put("title", c.getTitle());
+            item.put("status", c.getStatus().name());
+            item.put("submittedAt", c.getSubmittedAt());
+            item.put("citizenName", c.getUser() != null ? c.getUser().getFullName() : "Unknown");
+            item.put("citizenEmail", c.getUser() != null ? c.getUser().getEmail() : "");
+            result.add(item);
+        }
+        return result;
     }
 
     public Complaint saveComplaint(Complaint complaint) {

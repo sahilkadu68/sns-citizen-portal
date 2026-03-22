@@ -82,21 +82,21 @@ const ComplaintTracking: React.FC<{ user: any }> = ({ user }) => {
   return (
     <motion.div initial="hidden" animate="visible" variants={containerVars} className="space-y-10 max-w-7xl mx-auto px-4 pb-20 font-sans">
       {/* HEADER */}
-      <motion.div variants={itemVars} className="flex flex-col md:flex-row md:items-end justify-between gap-6 bg-white/50 backdrop-blur-xl p-8 rounded-3xl shadow-lg shadow-slate-200/40 border border-white">
+      <motion.div variants={itemVars} className="flex flex-col md:flex-row md:items-end justify-between gap-6 bg-white/50 dark:bg-slate-900/80 backdrop-blur-xl p-8 rounded-3xl shadow-lg shadow-slate-200/40 dark:shadow-black/20 border border-white dark:border-slate-800">
         <div>
-          <span className="inline-block px-3 py-1 mb-3 rounded-full bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest border border-blue-100">
+          <span className="inline-block px-3 py-1 mb-3 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest border border-blue-100 dark:border-blue-500/20">
             Citizen Dashboard
           </span>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+          <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
             <Activity className="text-blue-500" size={32} />
             Track Grievances
           </h1>
-          <p className="text-slate-500 mt-2 font-medium">
-            Real-time monitoring and lifecycle tracking of your reported civic issues.
+          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">
+            Real-time monitoring and lifecycle tracking of your reported civic issues. <span className="ml-2 font-bold text-slate-700 dark:text-slate-300">• Total: {filtered.length} Complaints</span>
           </p>
         </div>
 
-        <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner relative">
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner relative">
           {['all', 'active', 'resolved'].map(t => (
             <button
               key={t}
@@ -105,7 +105,7 @@ const ComplaintTracking: React.FC<{ user: any }> = ({ user }) => {
             >
               <span className={`relative z-10 ${filter === t ? 'text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>{t}</span>
               {filter === t && (
-                <motion.div layoutId="filterTab" className="absolute inset-0 bg-white rounded-xl shadow-sm border border-slate-200 z-0" />
+                <motion.div layoutId="filterTab" className="absolute inset-0 bg-white dark:bg-slate-700 rounded-xl shadow-sm border border-slate-200 dark:border-slate-600 z-0" />
               )}
             </button>
           ))}
@@ -116,7 +116,7 @@ const ComplaintTracking: React.FC<{ user: any }> = ({ user }) => {
       <div className="grid grid-cols-1 gap-6">
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="text-center py-24 bg-white/50 backdrop-blur-md rounded-[2rem] border border-white shadow-xl shadow-slate-200/40">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="text-center py-24 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md rounded-[2rem] border border-white dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-black/20">
               <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Filter size={32} className="text-slate-400" />
               </div>
@@ -132,14 +132,14 @@ const ComplaintTracking: React.FC<{ user: any }> = ({ user }) => {
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ delay: i * 0.05 }}
                 key={c.complaintId}
-                className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/40 border border-slate-100 overflow-hidden hover:-translate-y-1 hover:shadow-2xl hover:shadow-slate-200/60 transition-all group"
+                className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl shadow-slate-200/40 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 overflow-hidden hover:-translate-y-1 hover:shadow-2xl hover:shadow-slate-200/60 dark:hover:shadow-black/30 transition-all group"
               >
                 <div className="p-8">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 mb-6">
                     <div className="space-y-3">
                       <div className="flex items-center space-x-3">
                         <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-lg uppercase tracking-widest border border-blue-100">
-                          {c.complaintNumber}
+                          #{i + 1} • {c.complaintNumber}
                         </span>
                         <span className="text-xs font-bold text-slate-400 flex items-center">
                           <Clock size={12} className="mr-1.5" />
@@ -147,7 +147,7 @@ const ComplaintTracking: React.FC<{ user: any }> = ({ user }) => {
                         </span>
                       </div>
 
-                      <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
+                      <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                         {c.title}
                       </h3>
 
@@ -173,14 +173,14 @@ const ComplaintTracking: React.FC<{ user: any }> = ({ user }) => {
                     </span>
                   </div>
 
-                  <p className="text-slate-600 text-sm font-medium mb-8 bg-slate-50/80 p-5 rounded-2xl border border-slate-100 leading-relaxed">
+                  <p className="text-slate-600 dark:text-slate-300 text-sm font-medium mb-8 bg-slate-50/80 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 leading-relaxed">
                     {c.description}
                   </p>
 
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 mt-6 border-t border-slate-100/80">
                     <button
                       onClick={() => navigate(`/citizen/complaint/${c.complaintId}`)}
-                      className="w-full sm:w-auto px-6 py-3 bg-white border-2 border-slate-200 hover:border-blue-500 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-2 group-hover:border-blue-200"
+                      className="w-full sm:w-auto px-6 py-3 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 text-slate-600 dark:text-slate-300 hover:text-blue-700 dark:hover:text-blue-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-2 group-hover:border-blue-200"
                     >
                       <ExternalLink size={16} className="text-slate-400 group-hover:text-blue-500" />
                       View Full Details

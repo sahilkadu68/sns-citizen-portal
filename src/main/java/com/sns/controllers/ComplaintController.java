@@ -177,8 +177,73 @@ public class ComplaintController {
         String category = (String) body.get("category");
         Double lat = Double.parseDouble(body.get("latitude").toString());
         Double lng = Double.parseDouble(body.get("longitude").toString());
+        String title = (String) body.get("title");
+        String description = (String) body.get("description");
         
-        return ResponseEntity.ok(complaintService.findPotentialDuplicates(category, lat, lng));
+        return ResponseEntity.ok(complaintService.findPotentialDuplicates(category, lat, lng, title, description));
+    }
+
+    @GetMapping("/{id}/find-similar")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_DEPT_HEAD') or hasAuthority('ROLE_OFFICER')")
+    public ResponseEntity<?> findSimilarComplaints(@PathVariable Long id) {
+        try {
+            Complaint complaint = complaintService.getComplaintById(id);
+            String categoryName = complaint.getCategory() != null ? complaint.getCategory().getName() : null;
+            if (categoryName == null) {
+                return ResponseEntity.ok(java.util.List.of());
+            }
+            java.util.List<java.util.Map<String, Object>> similar = complaintService.findPotentialDuplicates(
+                categoryName, complaint.getLatitude(), complaint.getLongitude(),
+                complaint.getTitle(), complaint.getDescription(), true
+            );
+            // Exclude the complaint itself from results
+            similar.removeIf(m -> m.get("complaintId").equals(complaint.getComplaintId()));
+            return ResponseEntity.ok(similar);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}/duplicates")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_DEPT_HEAD') or hasAuthority('ROLE_OFFICER')")
+    public ResponseEntity<?> getDuplicatesForComplaint(@PathVariable Long id) {
+        return ResponseEntity.ok(complaintService.getDuplicatesForComplaint(id));
+    }
+
+    // F9: Batch Validation
+    @GetMapping("/admin/scan-duplicates")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_DEPT_HEAD')")
+    public ResponseEntity<?> scanAllPotentialDuplicates() {
+        try {
+            return ResponseEntity.ok(complaintService.scanAllPotentialDuplicates());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/admin/reject-duplicate")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_DEPT_HEAD')")
+    public ResponseEntity<?> rejectDuplicatePair(@RequestBody java.util.Map<String, Object> body) {
+        try {
+            Long id1 = Long.parseLong(body.get("complaintId1").toString());
+            Long id2 = Long.parseLong(body.get("complaintId2").toString());
+            complaintService.rejectDuplicatePair(id1, id2);
+            return ResponseEntity.ok(java.util.Map.of("message", "Pair rejected successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/{id}/merge-duplicate")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_DEPT_HEAD')")
+    public ResponseEntity<?> mergeDuplicate(@PathVariable Long id, @RequestBody java.util.Map<String, Object> body) {
+        try {
+            Long childId = Long.parseLong(body.get("childComplaintId").toString());
+            complaintService.linkAsDuplicate(id, childId);
+            return ResponseEntity.ok(java.util.Map.of("message", "Complaints merged successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
     }
 
     @PostMapping("/{parentId}/link-duplicate")

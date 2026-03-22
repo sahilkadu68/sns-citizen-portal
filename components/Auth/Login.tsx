@@ -4,6 +4,7 @@ import { User, UserRole } from '../../types';
 import { Shield, Lock, Mail, Eye, EyeOff, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
 import api from '../../src/api';
 import { motion } from 'framer-motion';
+import { useI18n } from '../../src/i18n';
 
 interface Props {
   onLogin: (user: User) => void;
@@ -11,6 +12,7 @@ interface Props {
 
 const Login: React.FC<Props> = ({ onLogin }) => {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -78,7 +80,7 @@ const Login: React.FC<Props> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col justify-center relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-slate-950 flex flex-col justify-center relative overflow-hidden font-sans">
       {/* Background Blobs */}
       <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-orange-400/20 blur-3xl opacity-50 mix-blend-multiply pointer-events-none"></div>
       <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-green-400/20 blur-3xl opacity-50 mix-blend-multiply pointer-events-none"></div>
@@ -91,24 +93,24 @@ const Login: React.FC<Props> = ({ onLogin }) => {
           transition={{ duration: 0.5 }}
           className="text-center"
         >
-          <Link to="/" className="inline-flex items-center gap-2 mb-8 bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full border border-slate-200 shadow-sm hover:bg-white transition-colors">
+          <Link to="/" className="inline-flex items-center gap-2 mb-8 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm px-4 py-2 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-white dark:hover:bg-slate-800 transition-colors">
             <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-1.5 rounded-lg shadow-md shadow-orange-500/20">
               <Shield size={20} />
             </div>
-            <span className="font-black text-xl tracking-tighter text-slate-800">
-              Smart<span className="text-orange-600">Nagrik</span><span className="text-green-600">Seva</span>
+            <span className="font-black text-xl tracking-tighter text-slate-800 dark:text-white">
+              {t('landing.hero.title1')}<span className="text-orange-600">{t('landing.hero.title2')}</span><span className="text-green-600 dark:text-green-400">{t('landing.hero.title3')}</span>
             </span>
           </Link>
 
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Welcome Back</h2>
-          <p className="text-slate-500 font-medium mb-8">Access the civic grievance portal</p>
+          <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight mb-2">{t('login.title')}</h2>
+          <p className="text-slate-500 dark:text-slate-400 font-medium mb-8">{t('login.subtitle')}</p>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="bg-white/80 backdrop-blur-xl py-8 px-6 sm:px-10 rounded-3xl shadow-2xl shadow-slate-200/50 border border-white/50"
+          className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl py-8 px-6 sm:px-10 rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/30 border border-white/50 dark:border-slate-800"
         >
           {error && (
             <motion.div
@@ -123,7 +125,7 @@ const Login: React.FC<Props> = ({ onLogin }) => {
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email Address</label>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">{t('login.email')}</label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
@@ -131,7 +133,7 @@ const Login: React.FC<Props> = ({ onLogin }) => {
                 <input
                   type="email"
                   required
-                  className="block w-full pl-11 pr-4 py-3.5 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 font-semibold focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white transition-all outline-none shadow-sm"
+                  className="block w-full pl-11 pr-4 py-3.5 bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white dark:focus:bg-slate-800 transition-all outline-none shadow-sm"
                   placeholder="name@example.com"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
@@ -140,7 +142,7 @@ const Login: React.FC<Props> = ({ onLogin }) => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Secure Password</label>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">{t('login.password')}</label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
@@ -148,7 +150,7 @@ const Login: React.FC<Props> = ({ onLogin }) => {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
-                  className="block w-full pl-11 pr-12 py-3.5 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 font-semibold focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white transition-all outline-none shadow-sm"
+                  className="block w-full pl-11 pr-12 py-3.5 bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white dark:focus:bg-slate-800 transition-all outline-none shadow-sm"
                   placeholder="••••••••"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
@@ -168,7 +170,7 @@ const Login: React.FC<Props> = ({ onLogin }) => {
             <div className="flex items-center justify-end">
               <div className="text-sm">
                 <Link to="/forgot-password" className="font-bold text-slate-500 hover:text-orange-600 transition-colors">
-                  Forgot your password?
+                  {t('login.forgot')}
                 </Link>
               </div>
             </div>
@@ -181,7 +183,7 @@ const Login: React.FC<Props> = ({ onLogin }) => {
               className="w-full flex justify-center items-center gap-2 py-4 px-4 border border-transparent rounded-2xl shadow-xl shadow-orange-500/20 text-sm font-black text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : (
-                <>SIGN IN <ArrowRight size={18} /></>
+                <> {t('login.submit')} <ArrowRight size={18} /></>
               )}
             </motion.button>
           </form>
@@ -192,13 +194,13 @@ const Login: React.FC<Props> = ({ onLogin }) => {
                 <div className="w-full border-t border-slate-200" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-slate-500 font-medium">New to Smart Nagrik Seva?</span>
+                <span className="px-2 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-medium">{t('login.newUser')}</span>
               </div>
             </div>
 
             <div className="mt-6 text-center">
               <Link to="/register" className="font-black text-orange-600 hover:text-orange-500 transition-colors inline-block pb-0.5 border-b-2 border-orange-200 hover:border-orange-500">
-                Create an account
+                {t('login.createAccount')}
               </Link>
             </div>
           </div>

@@ -93,6 +93,19 @@ const ComplaintDetails: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Linked Duplicate Banner */}
+                {complaint.parentComplaintId && (
+                    <div className="mx-8 md:mx-10 -mt-1 mb-0 p-4 bg-blue-50 border border-blue-200 rounded-2xl flex items-start gap-3">
+                        <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                            <Activity size={16} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-blue-800">Linked Report</p>
+                            <p className="text-xs text-blue-600 mt-0.5">Your report is linked to an earlier complaint for the same issue. When the original complaint is resolved, your report will be updated automatically.</p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Content */}
                 <div className="p-8 md:p-10 grid lg:grid-cols-5 gap-10">
 
