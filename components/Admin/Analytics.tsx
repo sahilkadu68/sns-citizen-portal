@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, AlertCircle, CheckCircle, Clock, BarChart3, X, MapPin, Calendar, Tag, User, ChevronRight } from 'lucide-react';
+import { TrendingUp, AlertCircle, CheckCircle, Clock, BarChart3, X, MapPin, Calendar, Tag, User, ChevronRight, Download } from 'lucide-react';
 import api from '../../src/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -57,6 +57,21 @@ const Analytics: React.FC = () => {
   const [activeDrill, setActiveDrill] = useState<DrillKey>(null);
 
   const COLORS = ['#f97316', '#3b82f6', '#10b981', '#a855f7', '#f59e0b'];
+
+  const handleDownloadCSV = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await api.get('/reports/export', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'complaints_report.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) { console.error('CSV download error', e); }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -146,6 +161,12 @@ const Analytics: React.FC = () => {
           </span>
           <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2">{t('analytics.title')} <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">{t('analytics.title2')}</span></h1>
           <p className="text-slate-400 font-medium text-sm">{t('analytics.subtitle')} <span className="text-blue-300 font-bold">{t('analytics.clickHint')}</span></p>
+          <button
+            onClick={handleDownloadCSV}
+            className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-xl border border-white/10 backdrop-blur-sm transition-all"
+          >
+            <Download size={16} /> Download CSV Report
+          </button>
         </div>
       </motion.div>
 
